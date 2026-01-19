@@ -23,7 +23,6 @@ type UsersResponse = {
 export default function AdminUsersPage() {
   const { data: session } = useSession();
   const currentUserId = session?.user?.id ?? null;
-  const isAdmin = session?.user?.role === "ADMIN";
 
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("desc");
@@ -319,25 +318,21 @@ export default function AdminUsersPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    {isAdmin ? (
-                      <select
-                        value={user.role}
-                        disabled={isSelf}
-                        onChange={(event) =>
-                          handleRoleChange(
-                            user.id,
-                            event.target.value as AdminUser["role"]
-                          )
-                        }
-                        className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
-                      >
-                        <option value="USER">USER</option>
-                        <option value="MOD">MOD</option>
-                        <option value="ADMIN">ADMIN</option>
-                      </select>
-                    ) : (
-                      <span>{user.role}</span>
-                    )}
+                    <select
+                      value={user.role}
+                      disabled={isSelf}
+                      onChange={(event) =>
+                        handleRoleChange(
+                          user.id,
+                          event.target.value as AdminUser["role"]
+                        )
+                      }
+                      className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
+                    >
+                      <option value="USER">USER</option>
+                      <option value="MOD">MOD</option>
+                      <option value="ADMIN">ADMIN</option>
+                    </select>
                   </td>
                   <td className="px-4 py-3">
                     <div className="text-xs text-slate-600">{bannedLabel}</div>

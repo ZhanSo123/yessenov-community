@@ -13,8 +13,6 @@ import { createAuditLog } from "@/lib/audit-log";
 import {
   canModerate,
   ensureNotBanned,
-  ensureInviteAccepted,
-  ensureOnboarded,
   requireUserApi,
 } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -36,9 +34,7 @@ export async function POST(request: NextRequest) {
     }
 
     const author = await requireUserApi();
-    ensureInviteAccepted(author);
     ensureNotBanned(author);
-    ensureOnboarded(author);
 
     if (!rateLimit(request, author.id)) {
       return apiError("RATE_LIMIT", 429);

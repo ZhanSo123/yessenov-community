@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Providers from "@/app/providers";
-import InviteGate from "@/components/InviteGate";
 import FeedbackButton from "@/components/FeedbackButton";
 import "./globals.css";
 
@@ -15,8 +14,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const inviteOnly = process.env.INVITE_ONLY === "true";
-
   return (
     <html lang="en">
       <body className="antialiased">
@@ -39,7 +36,6 @@ export default function RootLayout({
           </div>
         </header>
         <Providers>
-          <InviteGate inviteOnly={inviteOnly} />
           {children}
           <FeedbackButton />
         </Providers>

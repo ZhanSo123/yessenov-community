@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { useSession } from "next-auth/react";
 
 type Moderator = {
   id: string;
@@ -24,8 +23,6 @@ type ModsResponse = {
 export default function CommunityModsPage() {
   const params = useParams();
   const slug = typeof params.slug === "string" ? params.slug : "";
-  const { data: session } = useSession();
-  const isAdmin = session?.user?.role === "ADMIN";
   const [mods, setMods] = useState<Moderator[]>([]);
   const [community, setCommunity] = useState<ModsResponse["community"] | null>(
     null
@@ -167,8 +164,7 @@ export default function CommunityModsPage() {
           <select
             value={role}
             onChange={(event) => setRole(event.target.value as "MOD" | "OWNER")}
-            disabled={!isAdmin}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm disabled:opacity-60"
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
           >
             <option value="MOD">MOD</option>
             <option value="OWNER">OWNER</option>
@@ -182,11 +178,6 @@ export default function CommunityModsPage() {
             Добавить
           </button>
         </div>
-        {!isAdmin ? (
-          <p className="mt-2 text-xs text-slate-500">
-            Только ADMIN может назначать OWNER.
-          </p>
-        ) : null}
       </div>
 
       {loading ? <p className="text-sm text-slate-500">Загрузка...</p> : null}

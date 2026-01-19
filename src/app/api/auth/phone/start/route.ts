@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { checkActivityLimit } from "@/lib/abuse-tracker";

@@ -1,10 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-
-import AppealButton from "@/components/AppealButton";
 
 type FollowButtonProps = {
   username: string;
@@ -16,29 +13,18 @@ export default function FollowButton({
   initialFollowing,
 }: FollowButtonProps) {
   const { data: session, status } = useSession();
-  const router = useRouter();
   const [following, setFollowing] = useState(initialFollowing);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [banInfo, setBanInfo] = useState<{
-    bannedUntil?: string;
-    banReason?: string;
-  } | null>(null);
 
   const isUnauthed = status === "unauthenticated";
   const isLoading = status === "loading";
-  const isOnboarded = Boolean(session?.user?.hasOnboarded);
 
   const handleToggle = async () => {
     setMessage("");
 
     if (isUnauthed) {
       setMessage("Войдите, чтобы подписаться.");
-      return;
-    }
-
-    if (!isOnboarded) {
-      router.push("/onboarding");
       return;
     }
 
@@ -66,13 +52,6 @@ export default function FollowButton({
             : "неизвестно";
           const reason = payload.banReason ? ` Причина: ${payload.banReason}` : "";
           setMessage(`Вы заблокированы до ${until}.${reason}`);
-          setBanInfo({
-            bannedUntil: payload.bannedUntil,
-            banReason: payload.banReason,
-          });
-        } else if (payload?.error === "ONBOARDING_REQUIRED") {
-          router.push("/onboarding");
-          return;
         } else {
           setMessage("Доступ запрещён.");
         }
@@ -100,25 +79,12 @@ export default function FollowButton({
       <button
         type="button"
         onClick={handleToggle}
-        disabled={isLoading || loading || !isOnboarded}
+        disabled={isLoading || loading}
         className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
       >
         {loading ? "Обновляем..." : following ? "Отписаться" : "Подписаться"}
       </button>
-      {!isUnauthed && !isOnboarded ? (
-        <p className="text-xs text-slate-500">
-          Завершите онбординг, чтобы подписываться.
-        </p>
-      ) : null}
       {message ? <p className="text-xs text-slate-500">{message}</p> : null}
-      {banInfo && status === "authenticated" && session?.user?.id ? (
-        <AppealButton
-          targetType="USER_BAN"
-          targetId={session.user.id}
-          label="Подать апелляцию"
-          className="inline-flex items-center rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600"
-        />
-      ) : null}
     </div>
   );
 }

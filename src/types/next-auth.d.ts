@@ -4,31 +4,9 @@ declare module "next-auth" {
   interface Session {
     user: {
       id: string;
-      username: string | null;
-      role: "USER" | "MOD" | "ADMIN";
-      hasOnboarded: boolean;
-      age: number | null;
-      bio: string | null;
-      phoneE164: string | null;
-      inviteAcceptedAt: Date | null;
-      shadowBannedAt: Date | null;
-      shadowBanReason: string | null;
-      bannedUntil: Date | null;
-      banReason: string | null;
+      email?: string | null;
+      name?: string | null;
+      image?: string | null;
     } & DefaultSession["user"];
-  }
-
-  interface User {
-    role: "USER" | "MOD" | "ADMIN";
-    username: string | null;
-    hasOnboarded: boolean;
-    age: number | null;
-    bio: string | null;
-    phoneE164: string | null;
-    inviteAcceptedAt: Date | null;
-    shadowBannedAt: Date | null;
-    shadowBanReason: string | null;
-    bannedUntil: Date | null;
-    banReason: string | null;
   }
 }

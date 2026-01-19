@@ -6,8 +6,6 @@ import { apiError, apiSuccess } from "@/lib/api-errors";
 import {
   canModerate,
   ensureNotBanned,
-  ensureInviteAccepted,
-  ensureOnboarded,
   requireUserApi,
 } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -31,9 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     const author = await requireUserApi();
-    ensureInviteAccepted(author);
     ensureNotBanned(author);
-    ensureOnboarded(author);
 
     const parent = await prisma.post.findUnique({
       where: { id: parsed.data.repostOfId },

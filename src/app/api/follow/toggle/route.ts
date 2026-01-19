@@ -7,9 +7,7 @@ import { NextRequest } from "next/server";
 import { checkActivityLimit } from "@/lib/abuse-tracker";
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import {
-  ensureInviteAccepted,
   ensureNotBanned,
-  ensureOnboarded,
   requireUserApi,
 } from "@/lib/auth";
 import { isUniqueConstraintError } from "@/lib/prisma-errors";
@@ -32,9 +30,7 @@ export async function POST(request: NextRequest) {
     }
 
     const user = await requireUserApi();
-    ensureInviteAccepted(user);
     ensureNotBanned(user);
-    ensureOnboarded(user);
 
     if (!rateLimit(request, user.id)) {
       return apiError("RATE_LIMIT", 429);

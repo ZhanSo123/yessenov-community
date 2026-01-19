@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
-import { ensureInviteAccepted, requireUserApi } from "@/lib/auth";
+import { requireUserApi } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { OnboardingSchema } from "@/lib/validators";
 
@@ -20,7 +20,6 @@ export async function POST(request: NextRequest) {
     }
 
     const user = await requireUserApi();
-    ensureInviteAccepted(user);
     const username = parsed.data.username.trim();
     const usernameLower = username.toLowerCase();
 

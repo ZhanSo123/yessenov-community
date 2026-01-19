@@ -5,8 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
-import AppealButton from "@/components/AppealButton";
-
 export default function CreatePage() {
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -15,11 +13,6 @@ export default function CreatePage() {
   const [content, setContent] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [banInfo, setBanInfo] = useState<{
-    bannedUntil?: string;
-    banReason?: string;
-  } | null>(null);
-
   const loadingError = error;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -61,13 +54,6 @@ export default function CreatePage() {
             : "неизвестно";
           const reason = payload.banReason ? ` Причина: ${payload.banReason}` : "";
           setError(`Вы заблокированы до ${until}.${reason}`);
-          setBanInfo({
-            bannedUntil: payload.bannedUntil,
-            banReason: payload.banReason,
-          });
-        } else if (payload?.error === "ONBOARDING_REQUIRED") {
-          router.push("/onboarding");
-          return;
         } else {
           setError("Доступ запрещён.");
         }
@@ -91,9 +77,6 @@ export default function CreatePage() {
     }
   };
 
-  const bannedUntil = banInfo?.bannedUntil ?? user?.bannedUntil ?? null;
-  const banReason = banInfo?.banReason ?? user?.banReason ?? null;
-
   return (
     <div className="relative min-h-screen bg-[#f7f4ef] text-slate-900">
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 pb-16 pt-10">
@@ -107,19 +90,6 @@ export default function CreatePage() {
         {loadingError ? (
           <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
             {loadingError}
-          </div>
-        ) : null}
-
-        {bannedUntil && user ? (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-            <p>
-              Вы заблокированы до{" "}
-              {new Date(bannedUntil).toLocaleDateString()}
-              {banReason ? ` · Причина: ${banReason}` : ""}.
-            </p>
-            <div className="mt-2">
-              <AppealButton targetType="USER_BAN" targetId={user.id} />
-            </div>
           </div>
         ) : null}
 

@@ -19,7 +19,7 @@ const buildSuggestion = (email?: string | null, name?: string | null) => {
 export default function OnboardingClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status } = useSession();
+  const { data: session } = useSession();
   const user = session?.user ?? null;
 
   const suggested = useMemo(() => {
@@ -35,27 +35,6 @@ export default function OnboardingClient() {
   const [bio, setBio] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (status === "loading") {
-      return;
-    }
-    if (!user) {
-      router.replace("/welcome");
-      return;
-    }
-    if (
-      !user.inviteAcceptedAt &&
-      user.role !== "MOD" &&
-      user.role !== "ADMIN"
-    ) {
-      router.replace("/invite");
-      return;
-    }
-    if (user.username) {
-      router.replace("/");
-    }
-  }, [status, user, router]);
 
   useEffect(() => {
     if (!username && suggested) {

@@ -272,11 +272,7 @@ export default function ProfilePage() {
   };
 
   const isSelf = Boolean(
-    profile?.user &&
-      session?.user &&
-      (session.user.email === profile.user.email ||
-        (session.user.username &&
-          session.user.username === profile.user.username))
+    profile?.user && session?.user && session.user.email === profile.user.email
   );
 
   const canLoadMore = useMemo(

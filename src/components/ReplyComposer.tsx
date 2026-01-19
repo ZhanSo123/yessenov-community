@@ -1,10 +1,8 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
-import AppealButton from "@/components/AppealButton";
 import { type PostWithMeta } from "@/lib/post-types";
 
 type ReplyComposerProps = {
@@ -25,19 +23,13 @@ export default function ReplyComposer({
   inputRef,
 }: ReplyComposerProps) {
   const { data: session, status } = useSession();
-  const router = useRouter();
   const user = session?.user ?? null;
   const [content, setContent] = useState("");
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
-  const [banInfo, setBanInfo] = useState<{
-    bannedUntil?: string;
-    banReason?: string;
-  } | null>(null);
 
   const isLoading = status === "loading";
   const isUnauthed = status === "unauthenticated";
-  const isOnboarded = Boolean(user?.hasOnboarded);
 
   const handleSubmit = async () => {
     setError("");
@@ -48,11 +40,6 @@ export default function ReplyComposer({
 
     if (isUnauthed) {
       setError("Войдите, чтобы отвечать.");
-      return;
-    }
-
-    if (!isOnboarded) {
-      router.push("/onboarding");
       return;
     }
 
@@ -69,7 +56,7 @@ export default function ReplyComposer({
       replyToId: postId,
       author: {
         id: user?.id ?? "me",
-        username: user?.username ?? null,
+        username: null,
         name: user?.name ?? null,
         image: user?.image ?? null,
       },
@@ -105,14 +92,6 @@ export default function ReplyComposer({
             : "неизвестно";
           const reason = payload.banReason ? ` Причина: ${payload.banReason}` : "";
           setError(`Вы заблокированы до ${until}.${reason}`);
-          setBanInfo({
-            bannedUntil: payload.bannedUntil,
-            banReason: payload.banReason,
-          });
-        } else if (payload?.error === "ONBOARDING_REQUIRED") {
-          router.push("/onboarding");
-          onFailed?.(tempId);
-          return;
         } else {
           setError("Доступ запрещён.");
         }
@@ -143,7 +122,6 @@ export default function ReplyComposer({
     }
   };
 
-  const bannedUntil = banInfo?.bannedUntil;
   const localRef = useRef<HTMLTextAreaElement>(null);
   const resolvedRef = inputRef ?? localRef;
 
@@ -156,7 +134,7 @@ export default function ReplyComposer({
         maxLength={500}
         className="min-h-[90px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
         placeholder="Ваш ответ"
-        disabled={isLoading || isUnauthed || sending || !isOnboarded}
+        disabled={isLoading || isUnauthed || sending}
       />
       {isLoading ? (
         <p className="mt-2 text-xs text-slate-500">Загрузка...</p>
@@ -164,28 +142,12 @@ export default function ReplyComposer({
       {isUnauthed ? (
         <p className="mt-2 text-xs text-slate-500">Войдите, чтобы отвечать.</p>
       ) : null}
-      {!isUnauthed && !isOnboarded ? (
-        <p className="mt-2 text-xs text-slate-500">
-          Завершите онбординг, чтобы отвечать.
-        </p>
-      ) : null}
-      {bannedUntil && user ? (
-        <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50 p-2 text-xs text-rose-700">
-          <p>
-            Вы заблокированы до{" "}
-            {new Date(bannedUntil).toLocaleDateString()}.
-          </p>
-          <div className="mt-2">
-            <AppealButton targetType="USER_BAN" targetId={user.id} />
-          </div>
-        </div>
-      ) : null}
       {error ? <p className="mt-2 text-xs text-rose-600">{error}</p> : null}
       <div className="mt-2 flex items-center gap-2">
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={isLoading || isUnauthed || sending || !isOnboarded}
+          disabled={isLoading || isUnauthed || sending}
           className="rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
         >
           {sending ? "Отправляем..." : "Ответить"}

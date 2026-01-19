@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
 
 type InviteResponse = {
   ok?: boolean;
@@ -11,28 +10,9 @@ type InviteResponse = {
 
 export default function InvitePage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
-  const user = session?.user ?? null;
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
-
-  useEffect(() => {
-    if (status === "loading") {
-      return;
-    }
-    if (!user) {
-      router.replace("/welcome");
-      return;
-    }
-    if (user.role === "MOD" || user.role === "ADMIN") {
-      router.replace(user.username ? "/" : "/onboarding");
-      return;
-    }
-    if (user.inviteAcceptedAt) {
-      router.replace(user.username ? "/" : "/onboarding");
-    }
-  }, [status, user, router]);
 
   const handleSubmit = async () => {
     setError("");
@@ -52,7 +32,7 @@ export default function InvitePage() {
         return;
       }
       router.refresh();
-      router.replace(user?.username ? "/" : "/onboarding");
+      router.replace("/");
     } catch {
       setError("Не удалось проверить код");
     } finally {
