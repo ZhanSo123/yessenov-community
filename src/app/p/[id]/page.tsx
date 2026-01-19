@@ -276,9 +276,9 @@ export default function ThreadPage() {
         : [...current, reply]
     );
 
-    if (session?.user?.id && postId) {
+    if (session?.user?.email && postId) {
       try {
-        const key = `yc:participation:${session.user.id}`;
+        const key = `yc:participation:${session.user.email}`;
         const raw = window.localStorage.getItem(key);
         const parsed = raw ? JSON.parse(raw) : {};
         const baseCount = post?._count.replies ?? 0;

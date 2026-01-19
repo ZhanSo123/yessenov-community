@@ -22,7 +22,7 @@ type UsersResponse = {
 
 export default function AdminUsersPage() {
   const { data: session } = useSession();
-  const currentUserId = session?.user?.id ?? null;
+  const currentUserEmail = session?.user?.email ?? null;
 
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("desc");
@@ -291,7 +291,9 @@ export default function AdminUsersPage() {
           </thead>
           <tbody>
             {users.map((user) => {
-              const isSelf = currentUserId === user.id;
+              const isSelf = Boolean(
+                currentUserEmail && user.email === currentUserEmail
+              );
               const bannedLabel = user.bannedUntil
                 ? new Date(user.bannedUntil).toLocaleDateString()
                 : "—";

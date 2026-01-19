@@ -82,7 +82,7 @@ export default function WelcomePage() {
               </button>
               {googleDisabled ? (
                 <p className="text-xs text-slate-500">
-                  Google OAuth не настроен. Используйте email и пароль.
+                  Google OAuth не настроен. Проверьте ключи в окружении.
                 </p>
               ) : null}
               <p className="text-xs text-slate-500">

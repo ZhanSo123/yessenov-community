@@ -51,7 +51,7 @@ export default function AuthBar() {
               : status === "authenticated"
               ? `Вы вошли как ${label}`
               : googleMissing
-              ? "Google OAuth не настроен. Используйте email/пароль."
+              ? "Google OAuth не настроен."
               : "Войдите в аккаунт, чтобы публиковать"}
           </p>
         </div>
