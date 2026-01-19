@@ -1,0 +1,325 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String?
+  phoneE164     String?   @unique
+  username      String?   @unique
+  usernameLower String?   @unique
+  createdAt     DateTime  @default(now())
+  emailVerified DateTime?
+  image         String?
+  name          String?
+  age           Int?
+  bio           String?
+  hasOnboarded  Boolean   @default(false)
+  inviteAcceptedAt DateTime?
+  role          Role      @default(USER)
+  bannedUntil   DateTime?
+  banReason     String?
+  shadowBannedAt DateTime?
+  shadowBanReason String?
+  accounts      Account[]
+  comments      Comment[]
+  deletedPosts  Post[]    @relation("PostsDeletedBy")
+  followers     Follow[]  @relation("Follower")
+  following     Follow[]  @relation("Following")
+  likes         Like[]
+  posts         Post[]
+  communityModerations CommunityModerator[]
+  reports       Report[]  @relation("ReportsByUser")
+  resolvedReports Report[] @relation("ReportsResolvedBy")
+  appeals       Appeal[]
+  resolvedAppeals Appeal[] @relation("AppealsResolvedBy")
+  sessions      Session[]
+  auditLogs     AuditLog[]
+  feedback      Feedback[]
+  votes         Vote[]
+}
+
+model Community {
+  id          Int      @id @default(autoincrement())
+  slug        String   @unique
+  title       String
+  description String   @default("")
+  createdAt   DateTime @default(now())
+  posts       Post[]
+  moderators  CommunityModerator[]
+}
+
+model Post {
+  id          Int       @id @default(autoincrement())
+  content     String
+  createdAt   DateTime  @default(now())
+  authorId    String
+  communityId Int?
+  likeCount   Int       @default(0)
+  replyCount  Int       @default(0)
+  replyToId   Int?
+  repostCount Int       @default(0)
+  repostOfId  Int?
+  deletedAt   DateTime?
+  deletedById String?
+  deleteReason String?
+  comments    Comment[]
+  likes       Like[]
+  reports     Report[]
+  community   Community? @relation(fields: [communityId], references: [id])
+  author      User      @relation(fields: [authorId], references: [id])
+  deletedBy   User?     @relation("PostsDeletedBy", fields: [deletedById], references: [id])
+  replyTo     Post?     @relation("PostReplies", fields: [replyToId], references: [id])
+  replies     Post[]    @relation("PostReplies")
+  repostOf    Post?     @relation("PostReposts", fields: [repostOfId], references: [id])
+  reposts     Post[]    @relation("PostReposts")
+
+  @@index([createdAt])
+  @@index([authorId, createdAt])
+  @@index([replyToId, createdAt])
+  @@index([communityId, createdAt])
+}
+
+model Comment {
+  id              Int       @id @default(autoincrement())
+  postId          Int
+  authorId        String
+  parentCommentId Int?
+  content         String
+  score           Int       @default(0)
+  createdAt       DateTime  @default(now())
+  author          User      @relation(fields: [authorId], references: [id])
+  parentComment   Comment?  @relation("CommentToComment", fields: [parentCommentId], references: [id])
+  replies         Comment[] @relation("CommentToComment")
+  post            Post      @relation(fields: [postId], references: [id])
+}
+
+model Vote {
+  id         Int        @id @default(autoincrement())
+  userId     String
+  targetType TargetType
+  targetId   Int
+  value      Int
+  createdAt  DateTime   @default(now())
+  user       User       @relation(fields: [userId], references: [id])
+
+  @@unique([userId, targetType, targetId])
+}
+
+model Like {
+  id        Int      @id @default(autoincrement())
+  userId    String
+  postId    Int
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, postId])
+  @@index([postId])
+  @@index([userId])
+}
+
+model Follow {
+  id          Int      @id @default(autoincrement())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("Follower", fields: [followerId], references: [id])
+  following   User     @relation("Following", fields: [followingId], references: [id])
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model Report {
+  id            String       @id @default(cuid())
+  postId        Int
+  reporterId    String
+  reason        String
+  category      ReportCategory?
+  severity      Int?
+  status        ReportStatus @default(OPEN)
+  createdAt     DateTime     @default(now())
+  resolvedAt    DateTime?
+  resolvedById  String?
+  resolutionNote String?
+  post          Post         @relation(fields: [postId], references: [id])
+  reporter      User         @relation("ReportsByUser", fields: [reporterId], references: [id])
+  resolvedBy    User?        @relation("ReportsResolvedBy", fields: [resolvedById], references: [id])
+
+  @@unique([postId, reporterId])
+  @@index([status, createdAt])
+}
+
+model ModerationAction {
+  id         String       @id @default(cuid())
+  source     ActionSource @default(MANUAL)
+  action     String
+  actorId    String?
+  targetType String
+  targetId   String
+  reason     String
+  metadata   Json?
+  createdAt  DateTime     @default(now())
+  expiresAt  DateTime?
+
+  @@index([createdAt])
+  @@index([targetType, targetId])
+}
+
+model CommunityModerator {
+  id          String           @id @default(cuid())
+  communityId Int
+  userId      String
+  role        CommunityModRole @default(MOD)
+  createdAt   DateTime         @default(now())
+  community   Community        @relation(fields: [communityId], references: [id])
+  user        User             @relation(fields: [userId], references: [id])
+
+  @@unique([communityId, userId])
+  @@index([communityId])
+}
+
+model Appeal {
+  id             String       @id @default(cuid())
+  userId         String
+  targetType     String
+  targetId       String
+  reason         String
+  status         AppealStatus @default(OPEN)
+  createdAt      DateTime     @default(now())
+  resolvedAt     DateTime?
+  resolvedById   String?
+  resolutionNote String?
+  user           User         @relation(fields: [userId], references: [id])
+  resolvedBy     User?        @relation("AppealsResolvedBy", fields: [resolvedById], references: [id])
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+}
+
+model Feedback {
+  id          String   @id @default(cuid())
+  userId      String
+  message     String
+  currentPath String
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+}
+
+model PhoneOtp {
+  id         String   @id @default(cuid())
+  phoneE164  String
+  codeHash   String
+  createdAt  DateTime @default(now())
+  expiresAt  DateTime
+  attempts   Int      @default(0)
+  consumedAt DateTime?
+
+  @@index([phoneE164, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  action     String
+  targetType String
+  targetId   String
+  metadata   Json?
+  ip         String?
+  userAgent  String?
+  requestId  String?
+  createdAt  DateTime @default(now())
+  actor      User     @relation(fields: [actorId], references: [id])
+
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+  @@index([targetType, targetId])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+enum TargetType {
+  POST
+  COMMENT
+}
+
+enum Role {
+  USER
+  MOD
+  ADMIN
+}
+
+enum ReportStatus {
+  OPEN
+  RESOLVED
+  REJECTED
+}
+
+enum ReportCategory {
+  SPAM
+  HARASSMENT
+  ILLEGAL
+  OTHER
+}
+
+enum ActionSource {
+  MANUAL
+  AUTO
+}
+
+enum CommunityModRole {
+  MOD
+  OWNER
+}
+
+enum AppealStatus {
+  OPEN
+  APPROVED
+  DENIED
+}

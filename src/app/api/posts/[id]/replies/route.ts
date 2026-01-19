@@ -1,0 +1,157 @@
+import { type Prisma } from "@prisma/client";
+
+import { apiError, apiSuccess } from "@/lib/api-errors";
+import { canModerate, getOptionalUser } from "@/lib/auth";
+import { buildCursor, parseCursor } from "@/lib/pagination";
+import { prisma } from "@/lib/prisma";
+import { PaginationSchema } from "@/lib/validators";
+
+const DEFAULT_LIMIT = 20;
+
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const postId = Number(params.id);
+    if (Number.isNaN(postId)) {
+      return apiError("BAD_REQUEST", 400);
+    }
+
+    const { searchParams } = new URL(request.url);
+    const pagination = PaginationSchema.safeParse({
+      limit: searchParams.get("limit") ?? undefined,
+      cursor: searchParams.get("cursor") ?? undefined,
+    });
+
+    if (!pagination.success) {
+      return apiError("BAD_REQUEST", 400);
+    }
+
+    const limit = pagination.data.limit ?? DEFAULT_LIMIT;
+    const cursor = parseCursor(pagination.data.cursor);
+
+    if (pagination.data.cursor && !cursor) {
+      return apiError("BAD_REQUEST", 400);
+    }
+
+    const viewer = await getOptionalUser();
+    const viewerId = viewer?.id ?? null;
+    const viewerCanModerate = viewer ? canModerate(viewer) : false;
+
+    const parent = await prisma.post.findUnique({
+      where: { id: postId },
+      select: { id: true, authorId: true, deletedAt: true },
+    });
+
+    if (!parent) {
+      return apiError("NOT_FOUND", 404);
+    }
+
+    if (
+      parent.deletedAt &&
+      !viewerCanModerate &&
+      viewerId !== parent.authorId
+    ) {
+      return apiError("NOT_FOUND", 404);
+    }
+
+    const repliesWhere: Prisma.PostWhereInput = { replyToId: postId };
+
+    if (cursor) {
+      repliesWhere.AND = [
+        ...(repliesWhere.AND ?? []),
+        {
+          OR: [
+            { createdAt: { gt: cursor.createdAt } },
+            { createdAt: cursor.createdAt, id: { gt: cursor.id } },
+          ],
+        },
+      ];
+    }
+
+    if (!viewerCanModerate) {
+      if (viewerId) {
+        repliesWhere.AND = [
+          ...(repliesWhere.AND ?? []),
+          {
+            OR: [
+              { deletedAt: null, author: { shadowBannedAt: null } },
+              { authorId: viewerId },
+            ],
+          },
+        ];
+      } else {
+        repliesWhere.AND = [
+          ...(repliesWhere.AND ?? []),
+          { deletedAt: null },
+          { author: { shadowBannedAt: null } },
+        ];
+      }
+    }
+
+    const replies = await prisma.post.findMany({
+      where: repliesWhere,
+      orderBy: [
+        { createdAt: "asc" as const },
+        { id: "asc" as const },
+      ],
+      take: limit + 1,
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+            name: true,
+            image: true,
+            shadowBannedAt: true,
+          },
+        },
+        _count: { select: { likes: true, replies: true } },
+      },
+    });
+
+    const hasMore = replies.length > limit;
+    const sliced = hasMore ? replies.slice(0, limit) : replies;
+
+    const likedSet = viewerId
+      ? new Set(
+          (
+            await prisma.like.findMany({
+              where: { userId: viewerId, postId: { in: sliced.map((r) => r.id) } },
+              select: { postId: true },
+            })
+          ).map((like) => like.postId)
+        )
+      : new Set<number>();
+
+    const nextCursor = hasMore
+      ? buildCursor(sliced[sliced.length - 1].createdAt, sliced[sliced.length - 1].id)
+      : null;
+
+    return apiSuccess({
+      data: sliced.map((reply) => {
+        const isReplyShadowBanned = Boolean(reply.author.shadowBannedAt);
+        const canViewReply =
+          (!reply.deletedAt && !isReplyShadowBanned) ||
+          viewerCanModerate ||
+          (viewerId ? reply.authorId === viewerId : false);
+
+        return {
+          ...reply,
+          author: {
+            id: reply.author.id,
+            username: reply.author.username,
+            name: reply.author.name,
+            image: reply.author.image,
+          },
+          canViewDeleted: canViewReply,
+          viewerHasLiked: likedSet.has(reply.id),
+        };
+      }),
+      nextCursor,
+    });
+  } catch {
+    return apiError("INTERNAL_ERROR", 500);
+  }
+}
