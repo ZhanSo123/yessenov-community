@@ -1,4 +1,4 @@
-import bcrypt from "bcryptjs";
+import bcrypt from "bcrypt";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { checkActivityLimit } from "@/lib/abuse-tracker";
