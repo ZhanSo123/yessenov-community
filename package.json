@@ -12,9 +12,6 @@
     "test": "vitest run",
     "vercel-build": "prisma migrate deploy && next build"
   },
-  "prisma": {
-    "seed": "node prisma/seed.mjs"
-  },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
     "@prisma/client": "^6.19.2",
