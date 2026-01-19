@@ -177,6 +177,20 @@ export async function GET(request: NextRequest) {
       return error;
     }
 
+    try {
+      const url = new URL(request.url);
+      console.error("api/feed error", {
+        mode: url.searchParams.get("mode"),
+        cursor: url.searchParams.get("cursor"),
+        limit: url.searchParams.get("limit"),
+        message: error instanceof Error ? error.message : String(error),
+      });
+    } catch {
+      console.error("api/feed error", {
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+
     return apiError("INTERNAL_ERROR", 500);
   }
 }

@@ -75,6 +75,12 @@ Then check DNS/VPN/firewall and retry `npm install`.
 - Click "WhoAmI (dev)" to confirm `hasSession: true`.
 - Refresh the page: UI should stay authenticated.
 
+## Auth runtime note
+
+Auth.js + Prisma requires Node.js runtime on Vercel (Edge is not supported).
+After deploy, confirm `/api/auth/session` returns a user and `/api/dev/runtime`
+shows `runtime: "nodejs"`.
+
 ## Host mismatch = session null
 
 If you open the site via a different host (e.g. `http://192.168.x.x:3000`)
