@@ -1,20 +1,9 @@
 import type { Metadata } from "next";
-import { JetBrains_Mono, Space_Grotesk } from "next/font/google";
 import Link from "next/link";
 import Providers from "@/app/providers";
 import InviteGate from "@/components/InviteGate";
 import FeedbackButton from "@/components/FeedbackButton";
 import "./globals.css";
-
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-space-grotesk",
-  subsets: ["latin"],
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Yessenov Community",
@@ -30,9 +19,7 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      <body
-        className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} antialiased`}
-      >
+      <body className="antialiased">
         <header className="border-b border-slate-200 bg-white/80 backdrop-blur">
           <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4">
             <Link href="/" className="text-sm font-semibold text-slate-900">
