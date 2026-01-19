@@ -7,16 +7,17 @@ import { UserRoleSchema } from "@/lib/validators";
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
+    const { id } = context.params;
     const actor = await requireRoleApi("ADMIN");
 
     if (!rateLimitModeration(request, actor.id)) {
       return apiError("RATE_LIMIT", 429);
     }
 
-    if (actor.id === params.id) {
+    if (actor.id === id) {
       return apiError("BAD_REQUEST", 400);
     }
 
@@ -33,7 +34,7 @@ export async function POST(
     }
 
     const target = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { id: true, role: true },
     });
 

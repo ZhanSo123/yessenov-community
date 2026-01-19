@@ -6,16 +6,17 @@ import { rateLimitModeration } from "@/lib/rate-limit";
 
 export async function POST(
   _request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
+    const { id } = context.params;
     const actor = await requireUserApi();
 
     if (!rateLimitModeration(_request, actor.id)) {
       return apiError("RATE_LIMIT", 429);
     }
 
-    const postId = Number(params.id);
+    const postId = Number(id);
     if (Number.isNaN(postId)) {
       return apiError("BAD_REQUEST", 400);
     }

@@ -6,9 +6,10 @@ import { rateLimitModeration } from "@/lib/rate-limit";
 
 export async function POST(
   _request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
+    const { id } = context.params;
     const actor = await requireRoleApi("MOD");
 
     if (!rateLimitModeration(_request, actor.id)) {
@@ -16,7 +17,7 @@ export async function POST(
     }
 
     const target = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { id: true, role: true },
     });
 

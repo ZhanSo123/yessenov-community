@@ -6,12 +6,13 @@ import { CommunityModSchema } from "@/lib/validators";
 
 export async function GET(
   _request: Request,
-  { params }: { params: { slug: string } }
+  context: { params: { slug: string } }
 ) {
   try {
+    const { slug } = context.params;
     const actor = await requireUserApi();
     const community = await prisma.community.findUnique({
-      where: { slug: params.slug },
+      where: { slug },
       select: { id: true, slug: true, title: true },
     });
 
@@ -47,12 +48,13 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { slug: string } }
+  context: { params: { slug: string } }
 ) {
   try {
+    const { slug } = context.params;
     const actor = await requireUserApi();
     const community = await prisma.community.findUnique({
-      where: { slug: params.slug },
+      where: { slug },
       select: { id: true, slug: true, title: true },
     });
 
@@ -153,12 +155,13 @@ export async function POST(
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { slug: string } }
+  context: { params: { slug: string } }
 ) {
   try {
+    const { slug } = context.params;
     const actor = await requireUserApi();
     const community = await prisma.community.findUnique({
-      where: { slug: params.slug },
+      where: { slug },
       select: { id: true, slug: true, title: true },
     });
 

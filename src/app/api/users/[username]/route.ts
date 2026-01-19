@@ -4,10 +4,11 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   _request: Request,
-  { params }: { params: { username: string } }
+  context: { params: { username: string } }
 ) {
   try {
-    const usernameLower = params.username.toLowerCase();
+    const { username } = context.params;
+    const usernameLower = username.toLowerCase();
 
     const user = await prisma.user.findUnique({
       where: { usernameLower },

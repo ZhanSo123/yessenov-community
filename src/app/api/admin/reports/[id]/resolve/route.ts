@@ -7,9 +7,10 @@ import { ReportResolveSchema } from "@/lib/validators";
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
+    const { id } = context.params;
     const actor = await requireUserApi();
 
     if (!rateLimitModeration(request, actor.id)) {
@@ -32,7 +33,7 @@ export async function POST(
     const action = status === "REJECTED" ? "REPORT_REJECT" : "REPORT_RESOLVE";
 
     const target = await prisma.report.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: {
         id: true,
         post: { select: { communityId: true } },
@@ -57,7 +58,7 @@ export async function POST(
 
     const report = await prisma.$transaction(async (tx) => {
       const updated = await tx.report.update({
-        where: { id: params.id },
+        where: { id },
         data: {
           status,
           resolvedAt: new Date(),

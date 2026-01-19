@@ -10,10 +10,11 @@ const DEFAULT_LIMIT = 20;
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const postId = Number(params.id);
+    const { id } = context.params;
+    const postId = Number(id);
     if (Number.isNaN(postId)) {
       return apiError("BAD_REQUEST", 400);
     }
