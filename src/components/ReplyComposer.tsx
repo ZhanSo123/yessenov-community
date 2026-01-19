@@ -13,7 +13,7 @@ type ReplyComposerProps = {
   onOptimistic?: (reply: PostWithMeta) => void;
   onFailed?: (tempId: string) => void;
   onCancel?: () => void;
-  inputRef?: React.RefObject<HTMLTextAreaElement>;
+  inputRef?: React.RefObject<HTMLTextAreaElement | null>;
 };
 
 export default function ReplyComposer({

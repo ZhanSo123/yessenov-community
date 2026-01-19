@@ -5,11 +5,12 @@ export async function GET() {
     return new Response("Not found", { status: 404 });
   }
 
-  const host = headers().get("host");
-  const cookieHeader = headers().get("cookie") ?? "";
+  const requestHeaders = await headers();
+  const host = requestHeaders.get("host");
+  const cookieHeader = requestHeaders.get("cookie") ?? "";
   const cookieNames = cookieHeader
     .split(";")
-    .map((pair) => pair.trim().split("=")[0])
+    .map((pair: string) => pair.trim().split("=")[0])
     .filter(Boolean);
 
   return Response.json({

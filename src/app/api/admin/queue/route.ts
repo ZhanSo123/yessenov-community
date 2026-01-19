@@ -1,3 +1,5 @@
+import { NextRequest } from "next/server";
+
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { canModerate, getCommunityScope, requireUserApi } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -33,7 +35,7 @@ type QueueItem =
       payload: Record<string, unknown>;
     };
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const actor = await requireUserApi();
     const scope = await getCommunityScope(actor);

@@ -11,10 +11,10 @@ const DEFAULT_LIMIT = 20;
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     const postId = Number(id);
     if (Number.isNaN(postId)) {
       return apiError("BAD_REQUEST", 400);
@@ -61,8 +61,13 @@ export async function GET(
     const repliesWhere: Prisma.PostWhereInput = { replyToId: postId };
 
     if (cursor) {
+      const andArray = Array.isArray(repliesWhere.AND)
+        ? repliesWhere.AND
+        : repliesWhere.AND
+          ? [repliesWhere.AND]
+          : [];
       repliesWhere.AND = [
-        ...(repliesWhere.AND ?? []),
+        ...andArray,
         {
           OR: [
             { createdAt: { gt: cursor.createdAt } },
@@ -74,8 +79,13 @@ export async function GET(
 
     if (!viewerCanModerate) {
       if (viewerId) {
+        const andArray = Array.isArray(repliesWhere.AND)
+          ? repliesWhere.AND
+          : repliesWhere.AND
+            ? [repliesWhere.AND]
+            : [];
         repliesWhere.AND = [
-          ...(repliesWhere.AND ?? []),
+          ...andArray,
           {
             OR: [
               { deletedAt: null, author: { shadowBannedAt: null } },
@@ -84,8 +94,13 @@ export async function GET(
           },
         ];
       } else {
+        const andArray = Array.isArray(repliesWhere.AND)
+          ? repliesWhere.AND
+          : repliesWhere.AND
+            ? [repliesWhere.AND]
+            : [];
         repliesWhere.AND = [
-          ...(repliesWhere.AND ?? []),
+          ...andArray,
           { deletedAt: null },
           { author: { shadowBannedAt: null } },
         ];

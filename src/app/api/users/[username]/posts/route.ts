@@ -10,10 +10,10 @@ const DEFAULT_LIMIT = 20;
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ username: string }> }
+  context: { params: Promise<{ username: string }> }
 ) {
   try {
-    const { username } = await params;
+    const { username } = await context.params;
     const usernameLower = username.toLowerCase();
     const user = await prisma.user.findUnique({
       where: { usernameLower },

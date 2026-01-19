@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { NextRequest } from "next/server";
+
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import {
   canModerate,
@@ -14,7 +16,7 @@ const repostSchema = z.object({
   repostOfId: z.number().int(),
 });
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     let body: unknown;
     try {

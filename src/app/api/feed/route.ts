@@ -1,4 +1,5 @@
 import { type Prisma } from "@prisma/client";
+import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { canModerate, getOptionalUser, requireUserApi } from "@/lib/auth";
@@ -8,7 +9,7 @@ import { PaginationSchema } from "@/lib/validators";
 
 const DEFAULT_LIMIT = 30;
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const mode = searchParams.get("mode") ?? "for-you";
@@ -40,36 +41,35 @@ export async function GET(request: Request) {
       replyToId: null,
       deletedAt: null,
     };
+    const andFilters: Prisma.PostWhereInput[] = [];
 
     if (cursor) {
-      baseWhere.AND = [
-        ...(baseWhere.AND ?? []),
-        {
-          OR: [
-            { createdAt: { lt: cursor.createdAt } },
-            {
-              createdAt: cursor.createdAt,
-              id: { lt: cursor.id },
-            },
-          ],
-        },
-      ];
+      andFilters.push({
+        OR: [
+          { createdAt: { lt: cursor.createdAt } },
+          {
+            createdAt: cursor.createdAt,
+            id: { lt: cursor.id },
+          },
+        ],
+      });
     }
 
     if (!viewerCanModerate) {
       if (viewerId) {
-        baseWhere.AND = [
-          ...(baseWhere.AND ?? []),
-          {
-            OR: [
-              { author: { shadowBannedAt: null } },
-              { authorId: viewerId },
-            ],
-          },
-        ];
+        andFilters.push({
+          OR: [
+            { author: { shadowBannedAt: null } },
+            { authorId: viewerId },
+          ],
+        });
       } else {
         baseWhere.author = { shadowBannedAt: null };
       }
+    }
+
+    if (andFilters.length > 0) {
+      baseWhere.AND = andFilters;
     }
 
     const baseQuery = {

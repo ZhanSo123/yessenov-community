@@ -3,7 +3,8 @@ import { headers } from "next/headers";
 import { auth } from "@/auth";
 
 export async function GET() {
-  const host = headers().get("host");
+  const requestHeaders = await headers();
+  const host = requestHeaders.get("host");
   const nextAuthUrlHost = process.env.NEXTAUTH_URL
     ? new URL(process.env.NEXTAUTH_URL).host
     : null;

@@ -8,10 +8,10 @@ import { rateLimitModeration } from "@/lib/rate-limit";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id } = await context.params;
     const actor = await requireRoleApi("MOD");
 
     if (!rateLimitModeration(request, actor.id)) {

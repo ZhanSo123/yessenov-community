@@ -1,3 +1,5 @@
+import { NextRequest } from "next/server";
+
 import {
   NEW_USER_AGE_MS,
   NEW_USER_POST_THRESHOLD,
@@ -19,7 +21,7 @@ import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { PostCreateSchema } from "@/lib/validators";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     let body: unknown;
     try {

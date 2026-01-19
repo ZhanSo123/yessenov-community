@@ -1,3 +1,4 @@
+import { NextRequest } from "next/server";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { setAuthOverride } from "../src/lib/auth-session";
@@ -44,7 +45,7 @@ describe("API auth quality gate", () => {
 
     const { GET } = await import("../src/app/api/feed/route");
     const response = await GET(
-      new Request("http://localhost/api/feed?mode=for-you")
+      new NextRequest("http://localhost/api/feed?mode=for-you")
     );
 
     expect(response.status).toBe(200);
@@ -57,7 +58,7 @@ describe("API auth quality gate", () => {
 
     const { GET } = await import("../src/app/api/feed/route");
     const response = await GET(
-      new Request("http://localhost/api/feed?mode=following")
+      new NextRequest("http://localhost/api/feed?mode=following")
     );
 
     expect(response.status).toBe(401);
@@ -70,7 +71,7 @@ describe("API auth quality gate", () => {
 
     const { POST } = await import("../src/app/api/posts/route");
     const response = await POST(
-      new Request("http://localhost/api/posts", {
+      new NextRequest("http://localhost/api/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: "Hello" }),
@@ -85,7 +86,7 @@ describe("API auth quality gate", () => {
   it("POST /api/likes/toggle without session returns 401", async () => {
     const { POST } = await import("../src/app/api/likes/toggle/route");
     const response = await POST(
-      new Request("http://localhost/api/likes/toggle", {
+      new NextRequest("http://localhost/api/likes/toggle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ postId: 1 }),
@@ -100,7 +101,7 @@ describe("API auth quality gate", () => {
   it("POST /api/follow/toggle without session returns 401", async () => {
     const { POST } = await import("../src/app/api/follow/toggle/route");
     const response = await POST(
-      new Request("http://localhost/api/follow/toggle", {
+      new NextRequest("http://localhost/api/follow/toggle", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: "demo" }),

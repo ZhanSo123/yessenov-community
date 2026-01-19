@@ -33,18 +33,12 @@ export default function AuthLoginPage() {
     setLoading(true);
     const normalizedIdentifier = identifier.trim().toLowerCase();
     try {
-      const result = await signIn("credentials", {
+      await signIn("credentials", {
         redirect: true,
         callbackUrl: "/",
         identifier: normalizedIdentifier,
         password,
       });
-      if (isDev) {
-        console.log("credentials signIn result", result);
-      }
-      if (result?.error) {
-        setError("Неверные данные или аккаунт недоступен.");
-      }
     } finally {
       setLoading(false);
     }

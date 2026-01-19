@@ -1,3 +1,5 @@
+import { NextRequest } from "next/server";
+
 import {
   REPORT_AUTO_HIDE_THRESHOLD,
   REPORT_SEVERITY_AUTO_HIDE,
@@ -11,7 +13,7 @@ import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { ReportCreateSchema } from "@/lib/validators";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     let body: unknown;
     try {

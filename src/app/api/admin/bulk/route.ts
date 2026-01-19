@@ -1,3 +1,5 @@
+import { NextRequest } from "next/server";
+
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { createAuditLog } from "@/lib/audit-log";
 import { canModerate, getCommunityScope, requireUserApi } from "@/lib/auth";
@@ -7,7 +9,7 @@ import { BulkActionSchema } from "@/lib/validators";
 
 const MAX_BULK = 50;
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const actor = await requireUserApi();
     const scope = await getCommunityScope(actor);

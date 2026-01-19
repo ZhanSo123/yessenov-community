@@ -1,3 +1,4 @@
+import { NextRequest } from "next/server";
 import bcrypt from "bcrypt";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
@@ -6,7 +7,7 @@ import { getClientIp } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
 import { PhoneVerifySchema } from "@/lib/validators";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     let body: unknown;
     try {

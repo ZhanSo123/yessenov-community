@@ -1,4 +1,5 @@
 import { type Prisma } from "@prisma/client";
+import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { requireRoleApi } from "@/lib/auth";
@@ -8,7 +9,7 @@ import { PaginationSchema } from "@/lib/validators";
 
 const DEFAULT_LIMIT = 100;
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     await requireRoleApi("MOD");
 

@@ -10,10 +10,10 @@ declare module "next-auth" {
       age: number | null;
       bio: string | null;
       phoneE164: string | null;
-      inviteAcceptedAt: string | null;
-      shadowBannedAt: string | null;
+      inviteAcceptedAt: Date | null;
+      shadowBannedAt: Date | null;
       shadowBanReason: string | null;
-      bannedUntil: string | null;
+      bannedUntil: Date | null;
       banReason: string | null;
     } & DefaultSession["user"];
   }

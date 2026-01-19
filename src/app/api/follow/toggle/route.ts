@@ -2,6 +2,8 @@ import {
   FOLLOW_RATE_LIMIT_MAX,
   FOLLOW_RATE_LIMIT_WINDOW_MS,
 } from "@/lib/abuse-rules";
+import { NextRequest } from "next/server";
+
 import { checkActivityLimit } from "@/lib/abuse-tracker";
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import {
@@ -15,7 +17,7 @@ import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { FollowToggleSchema } from "@/lib/validators";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     let body: unknown;
     try {

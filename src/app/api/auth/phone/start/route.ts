@@ -1,3 +1,4 @@
+import { NextRequest } from "next/server";
 import bcrypt from "bcrypt";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
@@ -11,7 +12,7 @@ const OTP_TTL_MS = 10 * 60_000;
 const generateCode = () =>
   Math.floor(100000 + Math.random() * 900000).toString();
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     let body: unknown;
     try {

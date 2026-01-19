@@ -1,3 +1,4 @@
+import { NextRequest } from "next/server";
 import bcrypt from "bcrypt";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
@@ -13,7 +14,7 @@ const suggestUsername = (email: string, name?: string | null) => {
   return base || "user";
 };
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     let body: unknown;
     try {

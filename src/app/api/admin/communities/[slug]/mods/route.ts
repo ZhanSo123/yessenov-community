@@ -8,10 +8,10 @@ import { CommunityModSchema } from "@/lib/validators";
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
+  context: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { slug } = await params;
+    const { slug } = await context.params;
     const actor = await requireUserApi();
     const community = await prisma.community.findUnique({
       where: { slug },
@@ -50,10 +50,10 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
+  context: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { slug } = await params;
+    const { slug } = await context.params;
     const actor = await requireUserApi();
     const community = await prisma.community.findUnique({
       where: { slug },
@@ -157,10 +157,10 @@ export async function POST(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
+  context: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { slug } = await params;
+    const { slug } = await context.params;
     const actor = await requireUserApi();
     const community = await prisma.community.findUnique({
       where: { slug },

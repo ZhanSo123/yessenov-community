@@ -6,10 +6,10 @@ import { prisma } from "@/lib/prisma";
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: Promise<{ username: string }> }
+  context: { params: Promise<{ username: string }> }
 ) {
   try {
-    const { username } = await params;
+    const { username } = await context.params;
     const usernameLower = username.toLowerCase();
 
     const user = await prisma.user.findUnique({

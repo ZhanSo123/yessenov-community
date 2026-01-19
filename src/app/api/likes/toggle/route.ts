@@ -1,3 +1,5 @@
+import { NextRequest } from "next/server";
+
 import {
   LIKE_RATE_LIMIT_MAX,
   LIKE_RATE_LIMIT_WINDOW_MS,
@@ -16,7 +18,7 @@ import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { LikeToggleSchema } from "@/lib/validators";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     let body: unknown;
     try {

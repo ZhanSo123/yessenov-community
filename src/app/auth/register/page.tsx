@@ -45,16 +45,12 @@ export default function AuthRegisterPage() {
         return;
       }
 
-      const result = await signIn("credentials", {
+      await signIn("credentials", {
         redirect: true,
         callbackUrl: "/",
         identifier: normalizedEmail,
         password,
       });
-      if (result?.error) {
-        setError("Не удалось войти, попробуйте позже.");
-        return;
-      }
     } catch {
       setError("Не удалось зарегистрироваться.");
     } finally {

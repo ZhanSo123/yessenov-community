@@ -1,4 +1,5 @@
 import { type Prisma } from "@prisma/client";
+import { NextRequest } from "next/server";
 
 import {
   NEW_USER_AGE_MS,
@@ -57,7 +58,7 @@ const ensureSeedUser = async () =>
     },
   });
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const communitySlug = searchParams.get("community")?.trim();
@@ -69,6 +70,7 @@ export async function GET(request: Request) {
       replyToId: null,
       deletedAt: null,
     };
+    const andFilters: Prisma.PostWhereInput[] = [];
 
     if (communitySlug) {
       const community = await prisma.community.findUnique({
@@ -85,18 +87,19 @@ export async function GET(request: Request) {
 
     if (!viewerCanModerate) {
       if (viewerId) {
-        where.AND = [
-          ...(where.AND ?? []),
-          {
-            OR: [
-              { author: { shadowBannedAt: null } },
-              { authorId: viewerId },
-            ],
-          },
-        ];
+        andFilters.push({
+          OR: [
+            { author: { shadowBannedAt: null } },
+            { authorId: viewerId },
+          ],
+        });
       } else {
         where.author = { shadowBannedAt: null };
       }
+    }
+
+    if (andFilters.length > 0) {
+      where.AND = andFilters;
     }
 
     const posts = await prisma.post.findMany({
@@ -132,7 +135,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     let body: unknown;
     try {

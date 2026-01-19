@@ -1,3 +1,5 @@
+import { NextRequest } from "next/server";
+
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { requireRoleApi } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -12,7 +14,7 @@ const parseRange = (value: string | null) => {
   return null;
 };
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     await requireRoleApi("ADMIN");
 

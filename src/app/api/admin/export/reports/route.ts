@@ -1,10 +1,12 @@
+import { NextRequest } from "next/server";
+
 import { apiError } from "@/lib/api-errors";
 import { requireRoleApi } from "@/lib/auth";
 import { toCsv } from "@/lib/csv";
 import { prisma } from "@/lib/prisma";
 import { ReportStatusSchema } from "@/lib/validators";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
     await requireRoleApi("ADMIN");
 

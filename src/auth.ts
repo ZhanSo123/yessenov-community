@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
+import type { Adapter } from "next-auth/adapters";
 import bcrypt from "bcrypt";
 import { z } from "zod";
 
@@ -71,7 +72,7 @@ const credentialsSchema = z.object({
 });
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
+  adapter: PrismaAdapter(prisma) as Adapter,
   cookies: {
     sessionToken: {
       name: "authjs.session-token",
@@ -125,14 +126,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name ?? user.username,
-          image: user.image,
-          username: user.username,
-          role: user.role,
-        };
+        return user;
       },
     }),
     ...(googleConfigured
@@ -158,16 +152,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.age = user.age ?? null;
         session.user.bio = user.bio ?? null;
         session.user.phoneE164 = user.phoneE164 ?? null;
-        session.user.inviteAcceptedAt = user.inviteAcceptedAt
-          ? user.inviteAcceptedAt.toISOString()
-          : null;
-        session.user.shadowBannedAt = user.shadowBannedAt
-          ? user.shadowBannedAt.toISOString()
-          : null;
+        session.user.inviteAcceptedAt = user.inviteAcceptedAt ?? null;
+        session.user.shadowBannedAt = user.shadowBannedAt ?? null;
         session.user.shadowBanReason = user.shadowBanReason ?? null;
-        session.user.bannedUntil = user.bannedUntil
-          ? user.bannedUntil.toISOString()
-          : null;
+        session.user.bannedUntil = user.bannedUntil ?? null;
         session.user.banReason = user.banReason ?? null;
       }
       return session;
@@ -181,10 +169,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   events: {
     async createUser({ user }) {
-      await ensureUserProfile(user.id, user.name, user.image);
+      if (user?.id) {
+        await ensureUserProfile(user.id, user.name, user.image);
+      }
     },
     async signIn({ user }) {
-      await ensureUserProfile(user.id, user.name, user.image);
+      if (user?.id) {
+        await ensureUserProfile(user.id, user.name, user.image);
+      }
     },
   },
   pages: {

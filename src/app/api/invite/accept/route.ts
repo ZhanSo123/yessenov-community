@@ -1,8 +1,10 @@
+import { NextRequest } from "next/server";
+
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { requireUserApi } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const inviteOnly = process.env.INVITE_ONLY === "true";
     if (!inviteOnly) {
