@@ -10,6 +10,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "db:seed": "node prisma/seed.mjs",
     "vercel-build": "prisma migrate deploy && next build"
   },
   "dependencies": {
