@@ -1,3 +1,5 @@
+import { NextRequest } from "next/server";
+
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { createAuditLog } from "@/lib/audit-log";
 import { requireRoleApi } from "@/lib/auth";
@@ -6,11 +8,11 @@ import { rateLimitModeration } from "@/lib/rate-limit";
 import { UserBanSchema } from "@/lib/validators";
 
 export async function POST(
-  request: Request,
-  context: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = context.params;
+    const { id } = await params;
     const actor = await requireRoleApi("MOD");
 
     if (!rateLimitModeration(request, actor.id)) {

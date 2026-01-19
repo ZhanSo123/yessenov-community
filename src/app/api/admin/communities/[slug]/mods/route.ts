@@ -1,3 +1,5 @@
+import { NextRequest } from "next/server";
+
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { createAuditLog } from "@/lib/audit-log";
 import { canModerate, getCommunityModeratorRole, requireUserApi } from "@/lib/auth";
@@ -5,11 +7,11 @@ import { prisma } from "@/lib/prisma";
 import { CommunityModSchema } from "@/lib/validators";
 
 export async function GET(
-  _request: Request,
-  context: { params: { slug: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { slug } = context.params;
+    const { slug } = await params;
     const actor = await requireUserApi();
     const community = await prisma.community.findUnique({
       where: { slug },
@@ -47,11 +49,11 @@ export async function GET(
 }
 
 export async function POST(
-  request: Request,
-  context: { params: { slug: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { slug } = context.params;
+    const { slug } = await params;
     const actor = await requireUserApi();
     const community = await prisma.community.findUnique({
       where: { slug },
@@ -154,11 +156,11 @@ export async function POST(
 }
 
 export async function DELETE(
-  request: Request,
-  context: { params: { slug: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
-    const { slug } = context.params;
+    const { slug } = await params;
     const actor = await requireUserApi();
     const community = await prisma.community.findUnique({
       where: { slug },

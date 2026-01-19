@@ -1,4 +1,5 @@
 import { type Prisma } from "@prisma/client";
+import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { canModerate, getOptionalUser } from "@/lib/auth";
@@ -9,11 +10,11 @@ import { PaginationSchema } from "@/lib/validators";
 const DEFAULT_LIMIT = 20;
 
 export async function GET(
-  request: Request,
-  context: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = context.params;
+    const { id } = await params;
     const postId = Number(id);
     if (Number.isNaN(postId)) {
       return apiError("BAD_REQUEST", 400);

@@ -1,3 +1,5 @@
+import { NextRequest } from "next/server";
+
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { createAuditLog } from "@/lib/audit-log";
 import { canModerate, getCommunityModeratorRole, requireUserApi } from "@/lib/auth";
@@ -5,11 +7,11 @@ import { prisma } from "@/lib/prisma";
 import { rateLimitModeration } from "@/lib/rate-limit";
 
 export async function POST(
-  _request: Request,
-  context: { params: { id: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = context.params;
+    const { id } = await params;
     const actor = await requireUserApi();
 
     if (!rateLimitModeration(_request, actor.id)) {

@@ -1,3 +1,5 @@
+import { NextRequest } from "next/server";
+
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { canModerate, getOptionalUser } from "@/lib/auth";
 import { buildCursor, parseCursor } from "@/lib/pagination";
@@ -7,11 +9,11 @@ import { PaginationSchema } from "@/lib/validators";
 const DEFAULT_LIMIT = 20;
 
 export async function GET(
-  request: Request,
-  context: { params: { username: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ username: string }> }
 ) {
   try {
-    const { username } = context.params;
+    const { username } = await params;
     const usernameLower = username.toLowerCase();
     const user = await prisma.user.findUnique({
       where: { usernameLower },

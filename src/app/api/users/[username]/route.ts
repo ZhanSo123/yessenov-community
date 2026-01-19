@@ -1,13 +1,15 @@
+import { NextRequest } from "next/server";
+
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { canModerate, getOptionalUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
-  _request: Request,
-  context: { params: { username: string } }
+  _request: NextRequest,
+  { params }: { params: Promise<{ username: string }> }
 ) {
   try {
-    const { username } = context.params;
+    const { username } = await params;
     const usernameLower = username.toLowerCase();
 
     const user = await prisma.user.findUnique({
