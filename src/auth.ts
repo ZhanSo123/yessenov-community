@@ -13,11 +13,27 @@ import { prisma } from "@/lib/prisma";
 const rawNextAuthSecret = process.env.NEXTAUTH_SECRET ?? "";
 const looksLikeCommand = rawNextAuthSecret.includes("openssl rand -base64 32");
 const isProd = process.env.NODE_ENV === "production";
-const trustHost = process.env.AUTH_TRUST_HOST === "true";
-if (!isProd && (!rawNextAuthSecret || looksLikeCommand)) {
-  console.warn(
-    "NEXTAUTH_SECRET is missing or looks like a command. Set a real secret string in .env.local."
-  );
+const isVercel = Boolean(process.env.VERCEL || process.env.VERCEL_URL);
+const resolvedNextAuthUrl =
+  process.env.NEXTAUTH_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+const trustHost = process.env.AUTH_TRUST_HOST === "true" || isVercel;
+
+if (!process.env.NEXTAUTH_URL && resolvedNextAuthUrl) {
+  process.env.NEXTAUTH_URL = resolvedNextAuthUrl;
+}
+
+if (!isProd) {
+  if (!rawNextAuthSecret || looksLikeCommand) {
+    console.warn(
+      "NEXTAUTH_SECRET is missing or looks like a command. Set a real secret string in .env.local."
+    );
+  }
+  console.debug("Auth config", {
+    trustHost,
+    resolvedNextAuthUrl: process.env.NEXTAUTH_URL ?? null,
+    useSecureCookies: isProd,
+  });
 }
 
 const ensureUserProfile = async (
