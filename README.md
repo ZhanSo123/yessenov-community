@@ -105,7 +105,7 @@ Environment Variables:
 
 ```
 DATABASE_URL=postgresql://USER:PASSWORD@HOST/DB?sslmode=require
-NEXTAUTH_URL=https://<your-vercel-domain>
+NEXTAUTH_URL=https://yessenov-community-ro5t.vercel.app
 NEXTAUTH_SECRET=<random-32+-chars>
 AUTH_TRUST_HOST=true
 GOOGLE_CLIENT_ID=...
@@ -118,6 +118,12 @@ Google OAuth redirect URI:
 
 ```
 https://<your-vercel-domain>/api/auth/callback/google
+```
+
+For this deployment, use:
+
+```
+https://yessenov-community-ro5t.vercel.app/api/auth/callback/google
 ```
 
 Smoke checklist:

@@ -13,7 +13,8 @@ import { prisma } from "@/lib/prisma";
 const rawNextAuthSecret = process.env.NEXTAUTH_SECRET ?? "";
 const looksLikeCommand = rawNextAuthSecret.includes("openssl rand -base64 32");
 const isProd = process.env.NODE_ENV === "production";
-if (!rawNextAuthSecret || looksLikeCommand) {
+const trustHost = process.env.AUTH_TRUST_HOST === "true";
+if (!isProd && (!rawNextAuthSecret || looksLikeCommand)) {
   console.warn(
     "NEXTAUTH_SECRET is missing or looks like a command. Set a real secret string in .env.local."
   );
@@ -73,17 +74,6 @@ const credentialsSchema = z.object({
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma) as Adapter,
-  cookies: {
-    sessionToken: {
-      name: "authjs.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: isProd,
-      },
-    },
-  },
   providers: [
     Credentials({
       name: "credentials",
@@ -141,7 +131,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: process.env.NEXTAUTH_SECRET,
   session: { strategy: "database" },
   useSecureCookies: isProd,
-  trustHost: true,
+  trustHost,
   callbacks: {
     async session({ session, user }) {
       if (session.user) {
