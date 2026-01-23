@@ -32,6 +32,24 @@ export default function RootLayout({
               >
                 Following
               </Link>
+              <Link href="/search" className="transition hover:text-slate-900">
+                Поиск
+              </Link>
+              <Link
+                href="/notifications"
+                className="transition hover:text-slate-900"
+              >
+                Уведомления
+              </Link>
+              <Link href="/messages" className="transition hover:text-slate-900">
+                Сообщения
+              </Link>
+              <Link
+                href="/settings/profile"
+                className="transition hover:text-slate-900"
+              >
+                Profile
+              </Link>
             </nav>
           </div>
         </header>

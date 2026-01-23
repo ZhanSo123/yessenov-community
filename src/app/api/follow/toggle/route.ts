@@ -1,4 +1,5 @@
 import {
+
   FOLLOW_RATE_LIMIT_MAX,
   FOLLOW_RATE_LIMIT_WINDOW_MS,
 } from "@/lib/abuse-rules";
@@ -14,6 +15,9 @@ import { isUniqueConstraintError } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { FollowToggleSchema } from "@/lib/validators";
+import { createNotification } from "@/lib/notifications";
+
+export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
@@ -91,7 +95,33 @@ export async function POST(request: NextRequest) {
       }
     });
 
-    return apiSuccess({ data: { following } });
+    let isFriend = false;
+    if (following) {
+      const reverse = await prisma.follow.findUnique({
+        where: {
+          followerId_followingId: {
+            followerId: target.id,
+            followingId: user.id,
+          },
+        },
+        select: { id: true },
+      });
+      isFriend = Boolean(reverse);
+    }
+
+    if (following) {
+      try {
+        await createNotification({
+          userId: target.id,
+          actorId: user.id,
+          type: "FOLLOW",
+        });
+      } catch {
+        // ignore
+      }
+    }
+
+    return apiSuccess({ data: { following, isFriend } });
   } catch (error) {
     if (error instanceof Response) {
       return error;

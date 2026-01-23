@@ -4,6 +4,8 @@ import { z } from "zod";
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { prisma } from "@/lib/prisma";
 
+export const runtime = "nodejs";
+
 const communitySchema = z.object({
   slug: z.string().min(1).max(64),
   title: z.string().min(1).max(128),

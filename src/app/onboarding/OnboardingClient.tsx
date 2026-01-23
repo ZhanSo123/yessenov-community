@@ -5,8 +5,28 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 type OnboardingResponse = {
-  data?: { id: string; username: string | null };
+  data?: { username: string; displayName: string | null; bio: string | null };
   error?: string;
+  message?: string;
+};
+
+const normalizeUsername = (raw: string) => raw.trim().replace(/^@/, "");
+
+const isUsernameValid = (raw: string) => {
+  const username = normalizeUsername(raw);
+  if (username.length < 3 || username.length > 20) {
+    return false;
+  }
+  if (!/^[a-zA-Z0-9._]+$/.test(username)) {
+    return false;
+  }
+  if (/^[._]/.test(username) || /[._]$/.test(username)) {
+    return false;
+  }
+  if (username.includes("..") || username.includes("__")) {
+    return false;
+  }
+  return true;
 };
 
 const buildSuggestion = (email?: string | null, name?: string | null) => {
@@ -31,10 +51,11 @@ export default function OnboardingClient() {
   }, [searchParams, user?.email, user?.name]);
 
   const [username, setUsername] = useState(suggested);
-  const [age, setAge] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const canSubmit = isUsernameValid(username);
 
   useEffect(() => {
     if (!username && suggested) {
@@ -52,8 +73,8 @@ export default function OnboardingClient() {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          username,
-          age: age ? Number(age) : undefined,
+          username: normalizeUsername(username),
+          displayName: displayName.trim() || undefined,
           bio: bio.trim() || undefined,
         }),
       });
@@ -64,9 +85,13 @@ export default function OnboardingClient() {
 
       if (!response.ok) {
         if (payload?.error === "BAD_REQUEST") {
-          setError("Проверьте данные профиля.");
+          if (payload?.message === "INVALID_USERNAME") {
+            setError("Только латиница, цифры и ._");
+          } else {
+            setError("Проверьте данные профиля.");
+          }
         } else if (payload?.error === "CONFLICT") {
-          setError("Этот username уже занят.");
+          setError("Имя занято.");
         } else if (payload?.error === "UNAUTHORIZED") {
           router.replace("/welcome");
         } else {
@@ -75,12 +100,11 @@ export default function OnboardingClient() {
         return;
       }
 
-      if (!payload?.data?.id) {
+      if (!payload?.data?.username) {
         setError("Не удалось сохранить профиль.");
         return;
       }
 
-      router.refresh();
       router.replace("/");
     } catch {
       setError("Не удалось сохранить профиль.");
@@ -118,15 +142,13 @@ export default function OnboardingClient() {
               />
             </label>
             <label className="block text-xs font-semibold text-slate-600">
-              Возраст
+              Display name
               <input
-                type="number"
-                min={13}
-                max={99}
-                value={age}
-                onChange={(event) => setAge(event.target.value)}
+                type="text"
+                value={displayName}
+                onChange={(event) => setDisplayName(event.target.value)}
                 className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                placeholder="18"
+                placeholder="Как вас видно в ленте"
               />
             </label>
             <label className="block text-xs font-semibold text-slate-600">
@@ -142,7 +164,7 @@ export default function OnboardingClient() {
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={loading}
+              disabled={loading || !canSubmit}
               className="w-full rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
             >
               {loading ? "Сохраняем..." : "Сохранить профиль"}

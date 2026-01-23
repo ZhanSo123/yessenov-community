@@ -6,6 +6,8 @@ import { requireRoleApi } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { rateLimitModeration } from "@/lib/rate-limit";
 
+export const runtime = "nodejs";
+
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }

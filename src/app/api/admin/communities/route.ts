@@ -2,6 +2,8 @@ import { apiError, apiSuccess } from "@/lib/api-errors";
 import { canModerate, getCommunityScope, requireUserApi } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+export const runtime = "nodejs";
+
 export async function GET() {
   try {
     const actor = await requireUserApi();

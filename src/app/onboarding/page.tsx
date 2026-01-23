@@ -1,11 +1,27 @@
-import { Suspense } from "react";
+import { redirect } from "next/navigation";
 
+import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
 import OnboardingClient from "./OnboardingClient";
 
-export default function Page() {
-  return (
-    <Suspense fallback={<div className="p-6">Загрузка…</div>}>
-      <OnboardingClient />
-    </Suspense>
-  );
+export default async function Page() {
+  const session = await auth();
+  if (!session?.user?.id) {
+    redirect("/welcome");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { username: true, hasOnboarded: true },
+  });
+
+  if (!user) {
+    redirect("/welcome");
+  }
+
+  if (user.hasOnboarded) {
+    redirect("/");
+  }
+
+  return <OnboardingClient />;
 }

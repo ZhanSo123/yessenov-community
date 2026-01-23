@@ -6,10 +6,13 @@ import { canModerate, getCommunityScope, requireUserApi } from "@/lib/auth";
 import { buildCursorString, parseCursorString } from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
 import {
+
   PaginationSchema,
   ReportCategorySchema,
   ReportStatusSchema,
 } from "@/lib/validators";
+
+export const runtime = "nodejs";
 
 const DEFAULT_LIMIT = 50;
 

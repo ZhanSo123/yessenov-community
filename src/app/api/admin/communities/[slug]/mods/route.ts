@@ -6,6 +6,8 @@ import { canModerate, getCommunityModeratorRole, requireUserApi } from "@/lib/au
 import { prisma } from "@/lib/prisma";
 import { CommunityModSchema } from "@/lib/validators";
 
+export const runtime = "nodejs";
+
 export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ slug: string }> }

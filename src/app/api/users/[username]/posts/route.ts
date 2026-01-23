@@ -6,7 +6,9 @@ import { buildCursor, parseCursor } from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
 import { PaginationSchema } from "@/lib/validators";
 
-const DEFAULT_LIMIT = 20;
+export const runtime = "nodejs";
+
+const DEFAULT_LIMIT = 10;
 
 export async function GET(
   request: NextRequest,
@@ -14,7 +16,11 @@ export async function GET(
 ) {
   try {
     const { username } = await context.params;
-    const usernameLower = username.toLowerCase();
+    const trimmed = username.trim();
+    if (!trimmed) {
+      return apiError("BAD_REQUEST", 400);
+    }
+    const usernameLower = trimmed.toLowerCase();
     const user = await prisma.user.findUnique({
       where: { usernameLower },
       select: { id: true },
@@ -54,28 +60,51 @@ export async function GET(
         }
       : {};
 
-    const visibilityFilter =
-      viewerCanModerate || viewerId === user.id
-        ? {}
-        : { deletedAt: null, author: { shadowBannedAt: null } };
+    const visibilityFilter: {
+      deletedAt: null;
+      author?: { shadowBannedAt: null };
+    } = { deletedAt: null };
 
-    const posts = await prisma.post.findMany({
-      where: {
-        authorId: user.id,
-        replyToId: null,
-        ...visibilityFilter,
-        ...cursorFilter,
-      },
-      orderBy: [
-        { createdAt: "desc" as const },
-        { id: "desc" as const },
-      ],
-      take: limit + 1,
-      include: {
-        author: { select: { id: true, username: true, name: true, image: true } },
-        _count: { select: { likes: true, replies: true } },
-      },
-    });
+    if (!viewerCanModerate && viewerId !== user.id) {
+      visibilityFilter.author = { shadowBannedAt: null };
+    }
+
+    const [totalCount, posts] = await Promise.all([
+      prisma.post.count({
+        where: {
+          authorId: user.id,
+          replyToId: null,
+          ...visibilityFilter,
+        },
+      }),
+      prisma.post.findMany({
+        where: {
+          authorId: user.id,
+          replyToId: null,
+          ...visibilityFilter,
+          ...cursorFilter,
+        },
+        orderBy: [
+          { createdAt: "desc" as const },
+          { id: "desc" as const },
+        ],
+        take: limit + 1,
+        include: {
+          author: {
+            select: {
+              id: true,
+              email: true,
+              username: true,
+              name: true,
+              displayName: true,
+              image: true,
+            },
+          },
+          community: { select: { id: true, slug: true, title: true } },
+          _count: { select: { likes: true, replies: true } },
+        },
+      }),
+    ]);
 
     const hasMore = posts.length > limit;
     const sliced = hasMore ? posts.slice(0, limit) : posts;
@@ -102,6 +131,7 @@ export async function GET(
         canViewDeleted: true,
       })),
       nextCursor,
+      totalCount,
     });
   } catch {
     return apiError("INTERNAL_ERROR", 500);

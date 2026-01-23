@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 
 import {
+
   NEW_USER_AGE_MS,
   NEW_USER_POST_THRESHOLD,
   NEW_USER_POST_WINDOW_MS,
@@ -18,6 +19,12 @@ import {
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { PostCreateSchema } from "@/lib/validators";
+import {
+  createMentionNotifications,
+  createNotification,
+} from "@/lib/notifications";
+
+export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,6 +64,7 @@ export async function POST(request: NextRequest) {
         deletedAt: true,
         communityId: true,
         authorId: true,
+        replyToId: true,
         author: { select: { shadowBannedAt: true } },
       },
     });
@@ -71,6 +79,31 @@ export async function POST(request: NextRequest) {
       parent.authorId !== author.id
     ) {
       return apiError("NOT_FOUND", 404);
+    }
+
+    let rootPostId = parent.id;
+    let rootAuthorId = parent.authorId;
+    if (parent.replyToId) {
+      let cursorId: number | null = parent.replyToId;
+      while (cursorId) {
+        const root: {
+          id: number;
+          authorId: string;
+          replyToId: number | null;
+          deletedAt: Date | null;
+        } | null = await prisma.post.findUnique({
+          where: { id: cursorId },
+          select: { id: true, authorId: true, replyToId: true, deletedAt: true },
+        });
+
+        if (!root || root.deletedAt) {
+          break;
+        }
+
+        rootPostId = root.id;
+        rootAuthorId = root.authorId;
+        cursorId = root.replyToId ?? null;
+      }
     }
 
     const isNewUser =
@@ -129,10 +162,39 @@ export async function POST(request: NextRequest) {
         communityId: parent.communityId ?? null,
       },
       include: {
-        author: { select: { id: true, username: true, name: true, image: true } },
+        author: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            name: true,
+            displayName: true,
+            image: true,
+          },
+        },
         _count: { select: { likes: true, replies: true } },
       },
     });
+
+    if (rootAuthorId !== author.id) {
+      try {
+        await createNotification({
+          userId: rootAuthorId,
+          actorId: author.id,
+          type: "REPLY",
+          postId: rootPostId,
+          replyId: reply.id,
+        });
+      } catch {
+        // ignore
+      }
+    }
+
+    try {
+      await createMentionNotifications(parsed.data.content, author.id, reply.id);
+    } catch {
+      // ignore
+    }
 
     return apiSuccess(
       { data: { ...reply, viewerHasLiked: false, canViewDeleted: true } },

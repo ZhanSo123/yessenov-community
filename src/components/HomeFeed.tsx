@@ -31,6 +31,14 @@ export default function HomeFeed() {
   const initialMode = tabParam === "following" ? "following" : "for-you";
   const { data: session } = useSession();
   const currentUserId = session?.user?.id ?? null;
+  useEffect(() => {
+    if (
+      process.env.NODE_ENV === "development" &&
+      session?.user?.hasOnboarded === false
+    ) {
+      console.warn("User has not onboarded but reached /");
+    }
+  }, [session?.user?.hasOnboarded]);
 
   const [mode, setMode] = useState<"for-you" | "following">(initialMode);
   const [posts, setPosts] = useState<PostWithMeta[]>([]);
@@ -182,6 +190,10 @@ export default function HomeFeed() {
       setToastMessage("");
       toastTimerRef.current = null;
     }, 2200);
+  };
+
+  const handleDeletedPost = (postId: number) => {
+    setPosts((current) => current.filter((post) => post.id !== postId));
   };
 
   const scheduleViewBump = (postId: number) => {
@@ -530,10 +542,33 @@ export default function HomeFeed() {
           </div>
         ) : null}
 
-        {loading ? <p className="text-sm text-slate-500">Загрузка...</p> : null}
+        {loading ? (
+          <div className="space-y-4">
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div
+                key={`feed-skeleton-${index}`}
+                className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm animate-pulse"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-slate-200" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 w-32 rounded bg-slate-200" />
+                    <div className="h-3 w-24 rounded bg-slate-200" />
+                  </div>
+                </div>
+                <div className="mt-4 space-y-2">
+                  <div className="h-3 w-full rounded bg-slate-200" />
+                  <div className="h-3 w-5/6 rounded bg-slate-200" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         {!loading && !error && posts.length === 0 ? (
-          <p className="text-sm text-slate-500">Пока нет постов.</p>
+          <p className="text-sm text-slate-500">
+            Пока пусто. Напиши первый пост.
+          </p>
         ) : null}
 
         <div className="space-y-4">
@@ -548,6 +583,8 @@ export default function HomeFeed() {
                   onReplyToggle={(postId) =>
                     setReplyingId(replyingId === postId ? null : postId)
                   }
+                  onDeleted={handleDeletedPost}
+                  onDeleteError={showToast}
                   highlight={
                     Boolean(
                       currentUserId &&

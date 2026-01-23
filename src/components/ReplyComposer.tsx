@@ -56,8 +56,10 @@ export default function ReplyComposer({
       replyToId: postId,
       author: {
         id: user?.id ?? "me",
-        username: null,
+        email: user?.email ?? null,
+        username: user?.username ?? null,
         name: user?.name ?? null,
+        displayName: user?.displayName ?? null,
         image: user?.image ?? null,
       },
       _count: { likes: 0, replies: 0 },

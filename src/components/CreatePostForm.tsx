@@ -24,6 +24,11 @@ export default function CreatePostForm({
 
   const isLoading = status === "loading";
   const isUnauthed = status === "unauthenticated";
+  const isOnboarded = user?.hasOnboarded !== false;
+
+  if (!isLoading && !isUnauthed && !isOnboarded) {
+    return null;
+  }
 
   const handleSubmit = async () => {
     setError("");
@@ -50,8 +55,10 @@ export default function CreatePostForm({
       replyToId: null,
       author: {
         id: user?.id ?? "me",
-        username: null,
+        email: user?.email ?? null,
+        username: user?.username ?? null,
         name: user?.name ?? null,
+        displayName: user?.displayName ?? null,
         image: user?.image ?? null,
       },
       _count: {
@@ -126,7 +133,7 @@ export default function CreatePostForm({
         <h2 className="text-sm font-semibold text-slate-700">Новый пост</h2>
         {user ? (
           <span className="text-xs text-slate-500">
-            Автор: {user.name ?? user.email ?? "Вы"}
+            Автор: {user.displayName ?? user.name ?? user.email ?? "Вы"}
           </span>
         ) : null}
       </div>
@@ -142,9 +149,7 @@ export default function CreatePostForm({
         <p className="mt-2 text-xs text-slate-500">Загрузка...</p>
       ) : null}
       {isUnauthed ? (
-        <p className="mt-2 text-xs text-slate-500">
-          Войдите, чтобы публиковать посты.
-        </p>
+        <p className="mt-2 text-xs text-slate-500">Войдите, чтобы писать.</p>
       ) : null}
       {error ? <p className="mt-2 text-xs text-rose-600">{error}</p> : null}
       <button

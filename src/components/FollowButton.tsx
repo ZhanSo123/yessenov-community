@@ -28,6 +28,8 @@ export default function FollowButton({
       return;
     }
 
+    const previous = following;
+    setFollowing(!previous);
     setLoading(true);
     try {
       const response = await fetch("/api/follow/toggle", {
@@ -39,6 +41,7 @@ export default function FollowButton({
 
       if (response.status === 401) {
         setMessage("Сессия истекла. Перезайдите.");
+        setFollowing(previous);
         return;
       }
 
@@ -55,11 +58,13 @@ export default function FollowButton({
         } else {
           setMessage("Доступ запрещён.");
         }
+        setFollowing(previous);
         return;
       }
 
       if (!response.ok) {
         setMessage("Не удалось обновить подписку.");
+        setFollowing(previous);
         return;
       }
 
@@ -69,6 +74,7 @@ export default function FollowButton({
       setFollowing(Boolean(payload.data?.following));
     } catch {
       setMessage("Не удалось обновить подписку.");
+      setFollowing(previous);
     } finally {
       setLoading(false);
     }

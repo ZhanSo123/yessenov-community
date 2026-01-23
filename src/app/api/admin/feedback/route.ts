@@ -7,6 +7,8 @@ import { buildCursorString, parseCursorString } from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
 import { PaginationSchema } from "@/lib/validators";
 
+export const runtime = "nodejs";
+
 const DEFAULT_LIMIT = 100;
 
 export async function GET(request: NextRequest) {

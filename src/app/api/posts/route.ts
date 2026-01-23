@@ -1,7 +1,9 @@
 import { type Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 
+import { auth } from "@/auth";
 import {
+
   NEW_USER_AGE_MS,
   NEW_USER_POST_THRESHOLD,
   NEW_USER_POST_WINDOW_MS,
@@ -15,11 +17,16 @@ import {
   canModerate,
   ensureNotBanned,
   getOptionalUser,
-  requireUserApi,
 } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { PostCreateSchema } from "@/lib/validators";
+import {
+  createMentionNotifications,
+  createNotification,
+} from "@/lib/notifications";
+
+export const runtime = "nodejs";
 
 const SEED_USER = {
   email: "seed@yessenov.local",
@@ -103,8 +110,18 @@ export async function GET(request: NextRequest) {
     const posts = await prisma.post.findMany({
       where,
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 30,
       include: {
-        author: { select: { id: true, username: true, name: true, image: true } },
+        author: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            name: true,
+            displayName: true,
+            image: true,
+          },
+        },
         community: { select: { id: true, slug: true, title: true } },
         _count: { select: { likes: true, replies: true } },
       },
@@ -135,6 +152,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return apiError("UNAUTHORIZED", 401);
+    }
+
     let body: unknown;
     try {
       body = await request.json();
@@ -142,13 +164,18 @@ export async function POST(request: NextRequest) {
       return apiError("BAD_REQUEST", 400);
     }
 
-  const parsed = PostCreateSchema.safeParse(body);
-  if (!parsed.success) {
-    return apiError("BAD_REQUEST", 400);
-  }
+    const parsed = PostCreateSchema.safeParse(body);
+    if (!parsed.success) {
+      return apiError("BAD_REQUEST", 400);
+    }
 
-  const author = await requireUserApi();
-  ensureNotBanned(author);
+    const author = await prisma.user.findUnique({
+      where: { id: session.user.id },
+    });
+    if (!author) {
+      return apiError("UNAUTHORIZED", 401);
+    }
+    ensureNotBanned(author);
 
     if (!rateLimit(request, author.id)) {
       return apiError("RATE_LIMIT", 429);
@@ -184,17 +211,46 @@ export async function POST(request: NextRequest) {
       resolvedCommunityId = community.id;
     }
 
+    let rootPostId: number | null = null;
+    let rootAuthorId: string | null = null;
     if (typeof replyToId === "number") {
-      const parent = await prisma.post.findUnique({
-        where: { id: replyToId },
-        select: { id: true, deletedAt: true, communityId: true },
-      });
+      let cursorId: number | null = replyToId;
+      let first = true;
+      while (cursorId) {
+        const parent: {
+          id: number;
+          deletedAt: Date | null;
+          communityId: number | null;
+          authorId: string;
+          replyToId: number | null;
+        } | null = await prisma.post.findUnique({
+          where: { id: cursorId },
+          select: {
+            id: true,
+            deletedAt: true,
+            communityId: true,
+            authorId: true,
+            replyToId: true,
+          },
+        });
 
-      if (!parent || parent.deletedAt) {
-        return apiError("BAD_REQUEST", 400);
+        if (!parent || parent.deletedAt) {
+          return apiError("BAD_REQUEST", 400);
+        }
+
+        if (first) {
+          resolvedCommunityId = parent.communityId ?? null;
+          first = false;
+        }
+
+        if (!parent.replyToId) {
+          rootPostId = parent.id;
+          rootAuthorId = parent.authorId;
+          break;
+        }
+
+        cursorId = parent.replyToId;
       }
-
-      resolvedCommunityId = parent.communityId ?? null;
     }
 
     const isNewUser =
@@ -253,7 +309,16 @@ export async function POST(request: NextRequest) {
         communityId: resolvedCommunityId,
       },
       include: {
-        author: { select: { id: true, username: true, name: true, image: true } },
+        author: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            name: true,
+            displayName: true,
+            image: true,
+          },
+        },
         community: { select: { id: true, slug: true, title: true } },
         _count: { select: { likes: true, replies: true } },
       },
@@ -286,6 +351,26 @@ export async function POST(request: NextRequest) {
           },
         };
       }
+    }
+
+    if (replyToId && rootAuthorId && rootPostId && rootAuthorId !== author.id) {
+      try {
+        await createNotification({
+          userId: rootAuthorId,
+          actorId: author.id,
+          type: "REPLY",
+          postId: rootPostId,
+          replyId: typeof post.id === "number" ? post.id : null,
+        });
+      } catch {
+        // ignore
+      }
+    }
+
+    try {
+      await createMentionNotifications(content, author.id, post.id);
+    } catch {
+      // ignore
     }
 
     return apiSuccess(

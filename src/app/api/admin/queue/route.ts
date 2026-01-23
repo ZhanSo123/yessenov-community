@@ -5,6 +5,8 @@ import { canModerate, getCommunityScope, requireUserApi } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { PaginationSchema } from "@/lib/validators";
 
+export const runtime = "nodejs";
+
 const DEFAULT_LIMIT = 50;
 const MAX_BUCKET = 200;
 

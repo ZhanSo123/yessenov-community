@@ -81,6 +81,14 @@ export default function ThreadPage() {
         credentials: "include",
       });
 
+      if (response.status === 404) {
+        setPost(null);
+        setReplies([]);
+        setNextCursor(null);
+        setError("Пост не найден или скрыт.");
+        return;
+      }
+
       if (!response.ok) {
         throw new Error("Не удалось загрузить тред");
       }
@@ -316,8 +324,25 @@ export default function ThreadPage() {
     setReplies((current) => current.filter((item) => item.id !== tempId));
   };
 
-  const canReply =
-    postId && !(post?.deletedAt && post?.canViewDeleted === false);
+  const handleDeleted = (targetId: number) => {
+    setActionMessage("");
+    setReplies((current) => current.filter((item) => item.id !== targetId));
+    setPost((current) => {
+      if (!current || current.id !== targetId) {
+        return current;
+      }
+      return {
+        ...current,
+        deletedAt: new Date().toISOString(),
+      };
+    });
+  };
+
+  const handleDeleteError = (message: string) => {
+    setActionMessage(message);
+  };
+
+  const canReply = Boolean(postId && !post?.deletedAt && post?.canViewDeleted !== false);
   const isNotAuthor =
     Boolean(session?.user?.id) &&
     Boolean(post?.author.id) &&
@@ -359,7 +384,13 @@ export default function ThreadPage() {
 
         {post ? (
           <div className="space-y-4">
-            <PostCard post={post} onLike={handleToggleLike} showActions />
+            <PostCard
+              post={post}
+              onLike={handleToggleLike}
+              onDeleted={handleDeleted}
+              onDeleteError={handleDeleteError}
+              showActions
+            />
             {canReply ? (
               <ReplyComposer
                 postId={postId}
@@ -379,6 +410,8 @@ export default function ThreadPage() {
                 key={reply.id}
                 post={reply}
                 onLike={handleToggleLike}
+                onDeleted={handleDeleted}
+                onDeleteError={handleDeleteError}
                 showActions
                 indent
                 highlight={highlightReplyId === reply.id}

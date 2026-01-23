@@ -2,10 +2,12 @@ import { type Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
-import { canModerate, getOptionalUser } from "@/lib/auth";
+import { canModerate, getOptionalUser, requireUserApi } from "@/lib/auth";
 import { buildCursor, parseCursor } from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
 import { PaginationSchema } from "@/lib/validators";
+
+export const runtime = "nodejs";
 
 const DEFAULT_LIMIT = 20;
 
@@ -47,8 +49,10 @@ export async function GET(
         author: {
           select: {
             id: true,
+            email: true,
             username: true,
             name: true,
+            displayName: true,
             image: true,
             shadowBannedAt: true,
           },
@@ -58,6 +62,10 @@ export async function GET(
     });
 
     if (!post) {
+      return apiError("NOT_FOUND", 404);
+    }
+
+    if (post.deletedAt && !viewerCanModerate && viewerId !== post.authorId) {
       return apiError("NOT_FOUND", 404);
     }
 
@@ -75,8 +83,10 @@ export async function GET(
             ...post,
             author: {
               id: post.author.id,
+              email: post.author.email,
               username: post.author.username,
               name: post.author.name,
+              displayName: post.author.displayName,
               image: post.author.image,
             },
             content: "",
@@ -89,7 +99,10 @@ export async function GET(
       });
     }
 
-    const repliesWhere: Prisma.PostWhereInput = { replyToId: post.id };
+    const repliesWhere: Prisma.PostWhereInput = {
+      replyToId: post.id,
+      deletedAt: null,
+    };
     const replyFilters: Prisma.PostWhereInput[] = [];
 
     if (cursor) {
@@ -102,19 +115,7 @@ export async function GET(
     }
 
     if (!viewerCanModerate) {
-      if (viewerId) {
-        replyFilters.push({
-          OR: [
-            { deletedAt: null, author: { shadowBannedAt: null } },
-            { authorId: viewerId },
-          ],
-        });
-      } else {
-        replyFilters.push(
-          { deletedAt: null },
-          { author: { shadowBannedAt: null } }
-        );
-      }
+      replyFilters.push({ author: { shadowBannedAt: null } });
     }
 
     if (replyFilters.length > 0) {
@@ -132,8 +133,10 @@ export async function GET(
         author: {
           select: {
             id: true,
+            email: true,
             username: true,
             name: true,
+            displayName: true,
             image: true,
             shadowBannedAt: true,
           },
@@ -174,8 +177,10 @@ export async function GET(
           ...post,
           author: {
             id: post.author.id,
+            email: post.author.email,
             username: post.author.username,
             name: post.author.name,
+            displayName: post.author.displayName,
             image: post.author.image,
           },
           canViewDeleted: true,
@@ -184,16 +189,19 @@ export async function GET(
         replies: slicedReplies.map((reply) => {
           const isReplyShadowBanned = Boolean(reply.author.shadowBannedAt);
           const canViewReply =
-            (!reply.deletedAt && !isReplyShadowBanned) ||
-            viewerCanModerate ||
-            (viewerId ? reply.authorId === viewerId : false);
+            !reply.deletedAt &&
+            (!isReplyShadowBanned ||
+              viewerCanModerate ||
+              (viewerId ? reply.authorId === viewerId : false));
 
           return {
             ...reply,
             author: {
               id: reply.author.id,
+              email: reply.author.email,
               username: reply.author.username,
               name: reply.author.name,
+              displayName: reply.author.displayName,
               image: reply.author.image,
             },
             canViewDeleted: canViewReply,
@@ -204,6 +212,52 @@ export async function GET(
       },
     });
   } catch {
+    return apiError("INTERNAL_ERROR", 500);
+  }
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await context.params;
+    const postId = Number(id);
+    if (Number.isNaN(postId)) {
+      return apiError("BAD_REQUEST", 400);
+    }
+
+    const user = await requireUserApi();
+
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+      select: { id: true, authorId: true, deletedAt: true },
+    });
+
+    if (!post) {
+      return apiError("NOT_FOUND", 404);
+    }
+
+    if (post.authorId !== user.id) {
+      return apiError("FORBIDDEN", 403);
+    }
+
+    if (!post.deletedAt) {
+      await prisma.post.update({
+        where: { id: postId },
+        data: {
+          deletedAt: new Date(),
+          deletedById: user.id,
+        },
+      });
+    }
+
+    return apiSuccess({ ok: true });
+  } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
+
     return apiError("INTERNAL_ERROR", 500);
   }
 }

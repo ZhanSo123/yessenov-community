@@ -1,9 +1,54 @@
 import { NextRequest } from "next/server";
 
+import { auth } from "@/auth";
 import { apiError, apiSuccess } from "@/lib/api-errors";
-import { requireUserApi } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { OnboardingSchema } from "@/lib/validators";
+import { validateProfile } from "@/lib/validators";
+
+export const runtime = "nodejs";
+
+export async function GET() {
+  try {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return apiError("UNAUTHORIZED", 401);
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        displayName: true,
+        bio: true,
+        hasOnboarded: true,
+      },
+    });
+
+    if (!user) {
+      return apiError("UNAUTHORIZED", 401);
+    }
+
+    return apiSuccess({
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          displayName: user.displayName,
+          bio: user.bio,
+          hasOnboarded: user.hasOnboarded,
+        },
+      },
+    });
+  } catch (error) {
+    if (error instanceof Response) {
+      return error;
+    }
+    return apiError("INTERNAL_ERROR", 500);
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,43 +59,60 @@ export async function POST(request: NextRequest) {
       return apiError("BAD_REQUEST", 400);
     }
 
-    const parsed = OnboardingSchema.safeParse(body);
-    if (!parsed.success) {
-      return apiError("BAD_REQUEST", 400);
+    const session = await auth();
+    if (!session?.user?.id) {
+      return apiError("UNAUTHORIZED", 401);
     }
 
-    const user = await requireUserApi();
-    const username = parsed.data.username.trim();
-    const usernameLower = username.toLowerCase();
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { id: true, username: true, usernameLower: true, hasOnboarded: true },
+    });
+
+    if (!user) {
+      return apiError("UNAUTHORIZED", 401);
+    }
+
+    const validated = validateProfile(body);
+    if (!validated.ok) {
+      return apiError("BAD_REQUEST", 400, { message: validated.error.code });
+    }
+
+    if (
+      user.username &&
+      user.hasOnboarded &&
+      user.usernameLower &&
+      user.usernameLower !== validated.data.usernameLower
+    ) {
+      return apiError("BAD_REQUEST", 400, { message: "USERNAME_LOCKED" });
+    }
 
     const existing = await prisma.user.findUnique({
-      where: { usernameLower },
+      where: { usernameLower: validated.data.usernameLower },
       select: { id: true },
     });
 
     if (existing && existing.id !== user.id) {
-      return apiError("CONFLICT", 409);
+      return apiError("CONFLICT", 409, { message: "USERNAME_TAKEN" });
     }
 
     const updated = await prisma.user.update({
       where: { id: user.id },
       data: {
-        username,
-        usernameLower,
-        age: parsed.data.age ?? null,
-        bio: parsed.data.bio ?? null,
+        username: validated.data.username,
+        usernameLower: validated.data.usernameLower,
+        displayName: validated.data.displayName,
+        bio: validated.data.bio,
         hasOnboarded: true,
       },
       select: {
-        id: true,
-        email: true,
         username: true,
-        age: true,
+        displayName: true,
         bio: true,
       },
     });
 
-    return apiSuccess({ ok: true, user: updated });
+    return apiSuccess({ data: updated });
   } catch (error) {
     if (error instanceof Response) {
       return error;

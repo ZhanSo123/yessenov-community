@@ -6,6 +6,8 @@ import { canModerate, getCommunityModeratorRole, requireUserApi } from "@/lib/au
 import { prisma } from "@/lib/prisma";
 import { rateLimitModeration } from "@/lib/rate-limit";
 
+export const runtime = "nodejs";
+
 export async function POST(
   _request: NextRequest,
   context: { params: Promise<{ id: string }> }

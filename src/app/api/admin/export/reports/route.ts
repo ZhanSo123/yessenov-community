@@ -6,6 +6,8 @@ import { toCsv } from "@/lib/csv";
 import { prisma } from "@/lib/prisma";
 import { ReportStatusSchema } from "@/lib/validators";
 
+export const runtime = "nodejs";
+
 export async function GET(request: NextRequest) {
   try {
     await requireRoleApi("ADMIN");

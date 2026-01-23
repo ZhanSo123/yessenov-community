@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 
 import {
+
   LIKE_RATE_LIMIT_MAX,
   LIKE_RATE_LIMIT_WINDOW_MS,
 } from "@/lib/abuse-rules";
@@ -15,6 +16,9 @@ import { isUniqueConstraintError } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { LikeToggleSchema } from "@/lib/validators";
+import { createNotification } from "@/lib/notifications";
+
+export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
@@ -106,6 +110,19 @@ export async function POST(request: NextRequest) {
 
       return { liked: true, likeCount };
     });
+
+    if (result.liked && post.authorId !== user.id) {
+      try {
+        await createNotification({
+          userId: post.authorId,
+          actorId: user.id,
+          type: "LIKE",
+          postId: post.id,
+        });
+      } catch {
+        // ignore
+      }
+    }
 
     return apiSuccess({
       data: {

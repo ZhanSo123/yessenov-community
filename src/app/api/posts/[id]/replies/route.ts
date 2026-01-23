@@ -7,6 +7,8 @@ import { buildCursor, parseCursor } from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
 import { PaginationSchema } from "@/lib/validators";
 
+export const runtime = "nodejs";
+
 const DEFAULT_LIMIT = 20;
 
 export async function GET(
@@ -58,7 +60,10 @@ export async function GET(
       return apiError("NOT_FOUND", 404);
     }
 
-    const repliesWhere: Prisma.PostWhereInput = { replyToId: postId };
+    const repliesWhere: Prisma.PostWhereInput = {
+      replyToId: postId,
+      deletedAt: null,
+    };
 
     if (cursor) {
       const andArray = Array.isArray(repliesWhere.AND)
@@ -78,33 +83,15 @@ export async function GET(
     }
 
     if (!viewerCanModerate) {
-      if (viewerId) {
-        const andArray = Array.isArray(repliesWhere.AND)
-          ? repliesWhere.AND
-          : repliesWhere.AND
-            ? [repliesWhere.AND]
-            : [];
-        repliesWhere.AND = [
-          ...andArray,
-          {
-            OR: [
-              { deletedAt: null, author: { shadowBannedAt: null } },
-              { authorId: viewerId },
-            ],
-          },
-        ];
-      } else {
-        const andArray = Array.isArray(repliesWhere.AND)
-          ? repliesWhere.AND
-          : repliesWhere.AND
-            ? [repliesWhere.AND]
-            : [];
-        repliesWhere.AND = [
-          ...andArray,
-          { deletedAt: null },
-          { author: { shadowBannedAt: null } },
-        ];
-      }
+      const andArray = Array.isArray(repliesWhere.AND)
+        ? repliesWhere.AND
+        : repliesWhere.AND
+          ? [repliesWhere.AND]
+          : [];
+      repliesWhere.AND = [
+        ...andArray,
+        { author: { shadowBannedAt: null } },
+      ];
     }
 
     const replies = await prisma.post.findMany({
@@ -118,8 +105,10 @@ export async function GET(
         author: {
           select: {
             id: true,
+            email: true,
             username: true,
             name: true,
+            displayName: true,
             image: true,
             shadowBannedAt: true,
           },
@@ -150,16 +139,19 @@ export async function GET(
       data: sliced.map((reply) => {
         const isReplyShadowBanned = Boolean(reply.author.shadowBannedAt);
         const canViewReply =
-          (!reply.deletedAt && !isReplyShadowBanned) ||
-          viewerCanModerate ||
-          (viewerId ? reply.authorId === viewerId : false);
+          !reply.deletedAt &&
+          (!isReplyShadowBanned ||
+            viewerCanModerate ||
+            (viewerId ? reply.authorId === viewerId : false));
 
         return {
           ...reply,
           author: {
             id: reply.author.id,
+            email: reply.author.email,
             username: reply.author.username,
             name: reply.author.name,
+            displayName: reply.author.displayName,
             image: reply.author.image,
           },
           canViewDeleted: canViewReply,

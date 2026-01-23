@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { rateLimitModeration } from "@/lib/rate-limit";
 import { UserBanSchema } from "@/lib/validators";
 
+export const runtime = "nodejs";
+
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 import AppealButton from "@/components/AppealButton";
@@ -11,6 +12,8 @@ type PostCardProps = {
   post: PostWithMeta;
   onLike?: (postId: number) => void;
   onReplyToggle?: (postId: number) => void;
+  onDeleted?: (postId: number) => void;
+  onDeleteError?: (message: string) => void;
   showActions?: boolean;
   indent?: boolean;
   highlight?: boolean;
@@ -23,6 +26,8 @@ export default function PostCard({
   post,
   onLike,
   onReplyToggle,
+  onDeleted,
+  onDeleteError,
   showActions = true,
   indent = false,
   highlight = false,
@@ -31,20 +36,25 @@ export default function PostCard({
   activityDot = false,
 }: PostCardProps) {
   const { data: session, status } = useSession();
+  const router = useRouter();
   const isTemp = typeof post.id === "string" || post.sending;
-  const createdLabel = (() => {
+  if (process.env.NODE_ENV === "development" && !post.author.username) {
+    console.warn("PostCard: missing author.username", { postId: post.id });
+  }
+
+  const formatRelativeTime = (value: string) => {
     if (isTemp) {
       return "Отправляем...";
     }
-    const createdAt = new Date(post.createdAt);
+    const createdAt = new Date(value);
     if (Number.isNaN(createdAt.getTime())) {
       return "только что";
     }
     const diffMs = Date.now() - createdAt.getTime();
-    if (diffMs < 0 || diffMs < 5 * 60 * 1000) {
+    if (diffMs < 0) {
       return "только что";
     }
-    const diffMinutes = Math.floor(diffMs / (60 * 1000));
+    const diffMinutes = Math.max(1, Math.floor(diffMs / (60 * 1000)));
     if (diffMinutes < 60) {
       return `${diffMinutes} мин назад`;
     }
@@ -52,13 +62,27 @@ export default function PostCard({
     if (diffHours < 24) {
       return `${diffHours} ч назад`;
     }
+    if (diffHours < 48) {
+      return "вчера";
+    }
     const diffDays = Math.floor(diffHours / 24);
     return `${diffDays} д назад`;
-  })();
-  const usernameLabel = post.author.username ?? post.author.name ?? "user";
-  const handleLabel = `@${(post.author.username ?? usernameLabel)
-    .toLowerCase()
-    .replace(/\s+/g, "_")}`;
+  };
+
+  const createdLabel = formatRelativeTime(post.createdAt);
+  const displayName = post.author.displayName?.trim() || null;
+  const handleLabel = post.author.username ? `@${post.author.username}` : null;
+  const profileHref = post.author.username
+    ? `/u/${post.author.username}`
+    : null;
+  const handleProfilePrefetch = () => {
+    if (profileHref) {
+      router.prefetch(profileHref);
+    }
+  };
+  const avatarInitial = (displayName ?? post.author.username ?? "U")
+    .slice(0, 1)
+    .toUpperCase();
   const replyCount = post._count.replies;
   const hasDiscussion = replyCount > 0;
   const isHidden = post.canViewDeleted === false;
@@ -73,6 +97,18 @@ export default function PostCard({
   const [reportStatus, setReportStatus] = useState<
     "idle" | "sending" | "sent" | "error"
   >("idle");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [deleteStatus, setDeleteStatus] = useState<
+    "idle" | "sending" | "error"
+  >("idle");
+  const [deletedLocal, setDeletedLocal] = useState(false);
+  const isDeletedEffective = Boolean(post.deletedAt) || deletedLocal;
+  const canDelete =
+    status === "authenticated" &&
+    !isTemp &&
+    !isDeletedEffective &&
+    typeof post.id === "number" &&
+    session?.user?.id === post.author.id;
 
   const handleReport = async () => {
     if (!canReport || typeof post.id !== "number") {
@@ -106,6 +142,39 @@ export default function PostCard({
     }
   };
 
+  const handleDelete = async () => {
+    if (!canDelete || typeof post.id !== "number") {
+      return;
+    }
+
+    const confirmed = window.confirm("Удалить пост?");
+    if (!confirmed) {
+      return;
+    }
+
+    setDeleteStatus("sending");
+    setMenuOpen(false);
+    try {
+      const response = await fetch(`/api/posts/${post.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        setDeleteStatus("error");
+        onDeleteError?.("Не удалось удалить");
+        return;
+      }
+
+      setDeletedLocal(true);
+      onDeleted?.(post.id);
+      setDeleteStatus("idle");
+    } catch {
+      setDeleteStatus("error");
+      onDeleteError?.("Не удалось удалить");
+    }
+  };
+
   return (
     <article
       className={`rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-sm transition ${
@@ -113,15 +182,33 @@ export default function PostCard({
       } ${highlight ? "ring-1 ring-emerald-200 bg-emerald-50/40" : ""}`}
     >
       <div className="flex items-start gap-3">
-        {post.author.image ? (
+        {profileHref ? (
+          <Link
+            href={profileHref}
+            onMouseEnter={handleProfilePrefetch}
+            className="shrink-0"
+          >
+            {post.author.image ? (
+              <img
+                src={post.author.image}
+                alt={displayName ?? handleLabel ?? "User"}
+                className="h-10 w-10 rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-600">
+                {avatarInitial}
+              </div>
+            )}
+          </Link>
+        ) : post.author.image ? (
           <img
             src={post.author.image}
-            alt={usernameLabel}
+            alt={displayName ?? handleLabel ?? "User"}
             className="h-10 w-10 rounded-full object-cover"
           />
         ) : (
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-600">
-            {(usernameLabel || "U").slice(0, 1).toUpperCase()}
+            {avatarInitial}
           </div>
         )}
         <div className="flex-1">
@@ -131,21 +218,61 @@ export default function PostCard({
             </p>
           ) : null}
           <div className="flex flex-wrap items-center gap-2 text-sm">
-            {post.author.username ? (
-              <Link
-                href={`/u/${post.author.username}`}
-                className="font-semibold text-slate-900"
-              >
-                {handleLabel}
-              </Link>
+            {displayName ? (
+              <>
+                {profileHref ? (
+                  <Link
+                    href={profileHref}
+                    className="font-semibold text-slate-900"
+                  >
+                    {displayName}
+                  </Link>
+                ) : (
+                  <span className="font-semibold text-slate-900">
+                    {displayName}
+                  </span>
+                )}
+                {handleLabel ? (
+                  <span className="text-xs text-slate-500">{handleLabel}</span>
+                ) : null}
+              </>
+            ) : handleLabel ? (
+              profileHref ? (
+                <Link href={profileHref} className="font-semibold text-slate-900">
+                  {handleLabel}
+                </Link>
+              ) : (
+                <span className="font-semibold text-slate-900">{handleLabel}</span>
+              )
             ) : (
-              <span className="font-semibold text-slate-900">
-                {handleLabel}
-              </span>
+              <span className="font-semibold text-slate-900">User</span>
             )}
             <span className="text-xs text-slate-400">· {createdLabel}</span>
             {activityDot ? (
               <span className="text-xs text-emerald-500">•</span>
+            ) : null}
+            {canDelete ? (
+              <div className="relative ml-auto">
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen((open) => !open)}
+                  className="rounded-full px-2 py-1 text-xs text-slate-500 transition hover:bg-slate-100"
+                  aria-label="Меню"
+                >
+                  ⋯
+                </button>
+                {menuOpen ? (
+                  <div className="absolute right-0 z-10 mt-2 w-36 rounded-xl border border-slate-200 bg-white p-1 text-xs shadow-lg">
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      className="w-full rounded-lg px-3 py-2 text-left text-rose-600 transition hover:bg-rose-50"
+                    >
+                      Удалить
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             ) : null}
           </div>
           {isHidden ? (
@@ -161,22 +288,23 @@ export default function PostCard({
             </p>
           ) : (
             <>
-              {isDeleted ? (
+              {isDeletedEffective ? (
                 <div className="mt-2 space-y-2 text-xs text-amber-600">
-                  <p>Пост скрыт модерацией (виден автору/модераторам).</p>
+                  <p>Пост удалён. Он виден только тебе.</p>
                   {canAppealHidden ? (
                     <AppealButton targetType="POST" targetId={String(post.id)} />
                   ) : null}
                 </div>
-              ) : null}
-              <Link href={`/p/${post.id}`}>
-                <p className="mt-2 text-sm text-slate-700">
-                  {post.content || "Репост"}
-                </p>
-              </Link>
+              ) : (
+                <Link href={`/p/${post.id}`}>
+                  <p className="mt-2 text-sm text-slate-700">
+                    {post.content || "Репост"}
+                  </p>
+                </Link>
+              )}
             </>
           )}
-          {showActions && !isHidden ? (
+          {showActions && !isHidden && !isDeletedEffective ? (
             <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-slate-500">
               <button
                 type="button"
@@ -225,6 +353,9 @@ export default function PostCard({
                 </button>
               ) : null}
             </div>
+          ) : null}
+          {deleteStatus === "error" ? (
+            <p className="mt-2 text-xs text-rose-500">Не удалось удалить.</p>
           ) : null}
         </div>
       </div>

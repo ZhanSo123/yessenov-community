@@ -13,6 +13,7 @@ type RequireUserOptions = {
 export type Role = "USER" | "MOD" | "ADMIN";
 
 type SessionUser = {
+  id?: string;
   email?: string | null;
   name?: string | null;
   image?: string | null;
@@ -22,15 +23,6 @@ const ROLE_ORDER: Record<Role, number> = {
   USER: 0,
   MOD: 1,
   ADMIN: 2,
-};
-
-const usernameCandidates = (base: string) => {
-  const candidates = [base];
-  for (let suffix = 2; suffix < 100; suffix += 1) {
-    candidates.push(`${base}_${suffix}`);
-  }
-  candidates.push(`${base}_${Date.now().toString().slice(-6)}`);
-  return candidates;
 };
 
 const createUserFromSession = async (sessionUser: SessionUser) => {
@@ -59,45 +51,47 @@ const createUserFromSession = async (sessionUser: SessionUser) => {
   }
 };
 
-const ensureUsernameForExisting = async (
-  userId: string,
-  currentUsername: string | null,
-  base: string
-) => {
-  if (currentUsername) {
-    const usernameLower = currentUsername.toLowerCase();
-    await prisma.user.update({
-      where: { id: userId },
-      data: { usernameLower },
-    });
-    return;
-  }
-
-  for (const candidate of usernameCandidates(base)) {
-    try {
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          username: candidate,
-          usernameLower: candidate.toLowerCase(),
-        },
-      });
-      return;
-    } catch (error) {
-      if (!isUniqueConstraintError(error)) {
-        throw error;
-      }
-    }
-  }
+const ensureUsernameLower = async (userId: string, username: string) => {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { usernameLower: username.toLowerCase() },
+  });
 };
 
 const upsertUserFromSession = async (sessionUser: SessionUser) => {
+  if (sessionUser.id) {
+    const existing = await prisma.user.findUnique({
+      where: { id: sessionUser.id },
+    });
+
+    if (existing) {
+      if (existing.username && !existing.usernameLower) {
+        await ensureUsernameLower(existing.id, existing.username);
+      }
+
+      if (
+        existing.name !== sessionUser.name ||
+        existing.image !== sessionUser.image
+      ) {
+        return prisma.user.update({
+          where: { id: existing.id },
+          data: {
+            name: sessionUser.name ?? existing.name,
+            image: sessionUser.image ?? existing.image,
+          },
+        });
+      }
+
+      return existing;
+    }
+  }
+
   const email = sessionUser.email?.toLowerCase() ?? null;
   if (!email) {
     throw apiError("UNAUTHORIZED", 401);
   }
 
-  let existing = await prisma.user.findFirst({
+  const existing = await prisma.user.findFirst({
     where: { email: { equals: email, mode: "insensitive" } },
   });
 
@@ -105,23 +99,8 @@ const upsertUserFromSession = async (sessionUser: SessionUser) => {
     return createUserFromSession(sessionUser);
   }
 
-  if (
-    existing.username &&
-    (!existing.usernameLower ||
-      existing.usernameLower !== existing.username.toLowerCase())
-  ) {
-    await ensureUsernameForExisting(
-      existing.id,
-      existing.username ?? null,
-      existing.username.toLowerCase()
-    );
-  }
-
-  if (existing.username && !existing.hasOnboarded) {
-    existing = await prisma.user.update({
-      where: { id: existing.id },
-      data: { hasOnboarded: true },
-    });
+  if (existing.username && !existing.usernameLower) {
+    await ensureUsernameLower(existing.id, existing.username);
   }
 
   if (
@@ -144,7 +123,7 @@ export async function getOptionalUser() {
   const session = await getAuthSession();
   const sessionUser = session?.user ?? null;
 
-  if (!sessionUser?.email) {
+  if (!sessionUser?.id && !sessionUser?.email) {
     return null;
   }
 
@@ -155,7 +134,7 @@ export async function requireUserApi() {
   const session = await getAuthSession();
   const sessionUser = session?.user ?? null;
 
-  if (!sessionUser?.email) {
+  if (!sessionUser?.id && !sessionUser?.email) {
     throw apiError("UNAUTHORIZED", 401);
   }
 

@@ -4,11 +4,14 @@ import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import {
+
   canModerate,
   ensureNotBanned,
   requireUserApi,
 } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+
+export const runtime = "nodejs";
 
 const repostSchema = z.object({
   repostOfId: z.number().int(),
@@ -62,7 +65,16 @@ export async function POST(request: NextRequest) {
         communityId: parent.communityId ?? null,
       },
       include: {
-        author: { select: { id: true, username: true, name: true, image: true } },
+        author: {
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            name: true,
+            displayName: true,
+            image: true,
+          },
+        },
         _count: { select: { likes: true, replies: true } },
       },
     });

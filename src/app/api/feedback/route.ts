@@ -5,6 +5,8 @@ import { requireUserApi } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { FeedbackCreateSchema } from "@/lib/validators";
 
+export const runtime = "nodejs";
+
 export async function POST(request: NextRequest) {
   try {
     let body: unknown;

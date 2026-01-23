@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { AppealCreateSchema } from "@/lib/validators";
 
+export const runtime = "nodejs";
+
 export async function POST(request: NextRequest) {
   try {
     let body: unknown;

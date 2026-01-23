@@ -1,8 +1,16 @@
 export type PostAuthor = {
   id: string;
+  email?: string | null;
   username: string | null;
   name: string | null;
+  displayName?: string | null;
   image: string | null;
+};
+
+export type ViewerState = {
+  isFollowing: boolean;
+  isFriend: boolean;
+  isMe: boolean;
 };
 
 export type PostWithMeta = {

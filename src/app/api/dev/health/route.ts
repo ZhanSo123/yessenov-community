@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 
+export const runtime = "nodejs";
+
 export async function GET() {
   if (process.env.NODE_ENV === "production") {
     return new Response("Not found", { status: 404 });

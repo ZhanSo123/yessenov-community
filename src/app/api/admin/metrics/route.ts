@@ -4,6 +4,8 @@ import { apiError, apiSuccess } from "@/lib/api-errors";
 import { requireRoleApi } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+export const runtime = "nodejs";
+
 const parseRange = (value: string | null) => {
   if (value === "24h") {
     return 24 * 60 * 60 * 1000;

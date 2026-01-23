@@ -1,15 +1,18 @@
 import { type Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 
+import { withApiMetrics } from "@/lib/api-metrics";
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { canModerate, getOptionalUser, requireUserApi } from "@/lib/auth";
 import { buildCursor, parseCursor } from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
 import { PaginationSchema } from "@/lib/validators";
 
+export const runtime = "nodejs";
+
 const DEFAULT_LIMIT = 30;
 
-export async function GET(request: NextRequest) {
+const handler = async (request: NextRequest) => {
   try {
     const { searchParams } = new URL(request.url);
     const mode = searchParams.get("mode") ?? "for-you";
@@ -79,27 +82,29 @@ export async function GET(request: NextRequest) {
         { id: "desc" as const },
       ],
       take: limit + 1,
-      include: {
-        author: { select: { id: true, username: true, name: true, image: true } },
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        replyToId: true,
+        deletedAt: true,
+        author: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            image: true,
+          },
+        },
         _count: { select: { likes: true, replies: true } },
       },
     };
 
     if (mode === "following") {
       const user = await requireUserApi();
-      const following = await prisma.follow.findMany({
-        where: { followerId: user.id },
-        select: { followingId: true },
-      });
-      const followingIds = following.map((item) => item.followingId);
-
-      if (followingIds.length === 0) {
-        return apiSuccess({ data: [], nextCursor: null });
-      }
-
       const followingWhere: Prisma.PostWhereInput = {
         ...baseWhere,
-        authorId: { in: followingIds },
+        author: { followers: { some: { followerId: user.id } } },
       };
 
       const posts = await prisma.post.findMany({
@@ -193,4 +198,6 @@ export async function GET(request: NextRequest) {
 
     return apiError("INTERNAL_ERROR", 500);
   }
-}
+};
+
+export const GET = withApiMetrics(handler);

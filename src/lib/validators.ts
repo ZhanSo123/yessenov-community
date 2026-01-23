@@ -1,5 +1,160 @@
 import { z } from "zod";
 
+const RESERVED_USERNAMES = new Set([
+  "admin",
+  "root",
+  "support",
+  "help",
+  "me",
+  "settings",
+  "api",
+  "auth",
+  "u",
+  "p",
+  "post",
+  "posts",
+]);
+
+type UsernameValidationResult =
+  | { ok: true; username: string; usernameLower: string }
+  | { ok: false; error: { code: "INVALID_USERNAME" | "RESERVED_USERNAME"; message: string } };
+
+export const validateUsername = (raw: unknown): UsernameValidationResult => {
+  if (typeof raw !== "string") {
+    return {
+      ok: false,
+      error: { code: "INVALID_USERNAME", message: "Username must be a string." },
+    };
+  }
+
+  let username = raw.trim();
+  if (username.startsWith("@")) {
+    username = username.slice(1);
+  }
+
+  if (username.length < 3 || username.length > 20) {
+    return {
+      ok: false,
+      error: { code: "INVALID_USERNAME", message: "Username length is invalid." },
+    };
+  }
+
+  if (!/^[a-zA-Z0-9._]+$/.test(username)) {
+    return {
+      ok: false,
+      error: { code: "INVALID_USERNAME", message: "Username has invalid characters." },
+    };
+  }
+
+  if (/^[._]/.test(username) || /[._]$/.test(username)) {
+    return {
+      ok: false,
+      error: { code: "INVALID_USERNAME", message: "Username format is invalid." },
+    };
+  }
+
+  if (username.includes("..") || username.includes("__")) {
+    return {
+      ok: false,
+      error: { code: "INVALID_USERNAME", message: "Username format is invalid." },
+    };
+  }
+
+  const usernameLower = username.toLowerCase();
+  if (RESERVED_USERNAMES.has(usernameLower)) {
+    return {
+      ok: false,
+      error: { code: "RESERVED_USERNAME", message: "Username is reserved." },
+    };
+  }
+
+  return { ok: true, username, usernameLower };
+};
+
+type ProfileValidationResult =
+  | {
+      ok: true;
+      data: {
+        username: string;
+        usernameLower: string;
+        displayName: string | null;
+        bio: string | null;
+      };
+    }
+  | {
+      ok: false;
+      error: {
+        code:
+          | "INVALID_PAYLOAD"
+          | "INVALID_USERNAME"
+          | "RESERVED_USERNAME"
+          | "INVALID_DISPLAY_NAME"
+          | "INVALID_BIO";
+        message: string;
+      };
+    };
+
+export const validateProfile = (payload: unknown): ProfileValidationResult => {
+  if (!payload || typeof payload !== "object") {
+    return {
+      ok: false,
+      error: { code: "INVALID_PAYLOAD", message: "Payload is invalid." },
+    };
+  }
+
+  const record = payload as Record<string, unknown>;
+  const usernameResult = validateUsername(record.username);
+  if (!usernameResult.ok) {
+    return { ok: false, error: usernameResult.error };
+  }
+
+  let displayName: string | null = null;
+  if (record.displayName !== undefined) {
+    if (typeof record.displayName !== "string") {
+      return {
+        ok: false,
+        error: { code: "INVALID_DISPLAY_NAME", message: "Display name is invalid." },
+      };
+    }
+    const trimmed = record.displayName.trim();
+    if (trimmed.length > 40) {
+      return {
+        ok: false,
+        error: { code: "INVALID_DISPLAY_NAME", message: "Display name is too long." },
+      };
+    }
+    displayName = trimmed.length > 0 ? trimmed : null;
+  }
+
+  let bio: string | null = null;
+  if (record.bio !== undefined) {
+    if (typeof record.bio !== "string") {
+      return {
+        ok: false,
+        error: { code: "INVALID_BIO", message: "Bio is invalid." },
+      };
+    }
+    const trimmed = record.bio.trim();
+    if (trimmed.length > 160) {
+      return {
+        ok: false,
+        error: { code: "INVALID_BIO", message: "Bio is too long." },
+      };
+    }
+    bio = trimmed.length > 0 ? trimmed : null;
+  }
+
+  return {
+    ok: true,
+    data: {
+      username: usernameResult.username,
+      usernameLower: usernameResult.usernameLower,
+      displayName,
+      bio,
+    },
+  };
+};
+
 export const PostCreateSchema = z.object({
   content: z.string().trim().min(1).max(500),
   replyToId: z.number().int().optional(),
@@ -18,6 +173,14 @@ export const FollowToggleSchema = z.object({
     .min(1)
     .max(32)
     .regex(/^[a-z0-9_]+$/),
+});
+
+export const DmStartSchema = z.object({
+  username: z.string().trim().min(1).max(32),
+});
+
+export const DmSendSchema = z.object({
+  content: z.string().trim().min(1).max(1000),
 });
 
 export const ReportCategorySchema = z.enum([
@@ -92,6 +255,12 @@ export const PaginationSchema = z.object({
   cursor: z.string().optional(),
 });
 
+export const SearchUsersSchema = z.object({
+  q: z.string().trim().min(1),
+  limit: z.coerce.number().int().positive().max(20).optional(),
+  cursor: z.string().optional(),
+});
+
 export const AppealCreateSchema = z.object({
   targetType: z.string().trim().min(1).max(32),
   targetId: z.string().trim().min(1).max(64),
@@ -115,9 +284,12 @@ export const RegisterSchema = z.object({
 });
 
 export const OnboardingSchema = z.object({
-  username: z.string().trim().min(3).max(20).regex(/^[a-z0-9_]+$/),
+  username: z.string().trim().min(3).max(20).regex(/^@?[a-z0-9_]+$/),
   age: z.coerce.number().int().min(13).max(120).optional(),
+  faculty: z.string().trim().max(80).optional(),
+  course: z.coerce.number().int().min(1).max(6).optional(),
   bio: z.string().trim().max(160).optional(),
+  image: z.string().trim().max(2000000).optional(),
 });
 
 export const PhoneStartSchema = z.object({

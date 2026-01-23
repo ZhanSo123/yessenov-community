@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { rateLimitModeration } from "@/lib/rate-limit";
 import { BulkActionSchema } from "@/lib/validators";
 
+export const runtime = "nodejs";
+
 const MAX_BULK = 50;
 
 export async function POST(request: NextRequest) {

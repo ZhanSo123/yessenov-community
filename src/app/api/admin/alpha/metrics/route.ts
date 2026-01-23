@@ -2,6 +2,8 @@ import { apiError, apiSuccess } from "@/lib/api-errors";
 import { requireRoleApi } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+export const runtime = "nodejs";
+
 export async function GET() {
   try {
     await requireRoleApi("ADMIN");

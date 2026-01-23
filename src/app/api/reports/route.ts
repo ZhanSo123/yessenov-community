@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 
 import {
+
   REPORT_AUTO_HIDE_THRESHOLD,
   REPORT_SEVERITY_AUTO_HIDE,
   REPORT_WINDOW_MS,
@@ -12,6 +13,8 @@ import { isUniqueConstraintError } from "@/lib/prisma-errors";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { ReportCreateSchema } from "@/lib/validators";
+
+export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {

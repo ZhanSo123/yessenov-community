@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { getProviders, signIn } from "next-auth/react";
 
 export default function WelcomePage() {
   const [hasGoogleProvider, setHasGoogleProvider] = useState(true);
   const [providersLoaded, setProvidersLoaded] = useState(false);
+  const searchParams = useSearchParams();
+  const error = searchParams.get("error");
 
   useEffect(() => {
     let active = true;
@@ -80,6 +83,11 @@ export default function WelcomePage() {
               >
                 Войти через Google
               </button>
+              {error ? (
+                <p className="text-xs text-rose-500">
+                  Ошибка входа: {error}
+                </p>
+              ) : null}
               {googleDisabled ? (
                 <p className="text-xs text-slate-500">
                   Google OAuth не настроен. Проверьте ключи в окружении.
