@@ -1,11 +1,14 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs"
+
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { getProviders, signIn } from "next-auth/react";
 
-export const dynamic = "force-dynamic";
+
 
 export default function WelcomePage() {
   const [hasGoogleProvider, setHasGoogleProvider] = useState(true);
