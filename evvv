@@ -1,0 +1,13 @@
+# Database (обязательно, если DB sessions)
+DATABASE_URL="postgresql://neondb_owner:npg_d6h8QGFWoZMX@ep-muddy-haze-a1napgsw-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+
+# Auth.js / NextAuth
+NEXTAUTH_URL="http://localhost:3000"
+NEXTAUTH_SECRET="NaJZGwhoCrUK8D8bnAMdp923wMKsAa6Cx79UrQg6YJE="
+
+# Google OAuth
+
+GOOGLE_CLIENT_ID="667570094546-7ss3to43qekeddden4o1lbk04pes86h5.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET="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"
+INVITE_ONLY="true"
+INVITE_CODES="alpha1,alpha2,alpha3"
