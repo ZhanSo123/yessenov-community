@@ -63,7 +63,7 @@ export default function AppealButton({
       disabled={status === "sending" || status === "sent"}
       className={
         className ??
-        "inline-flex items-center rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 transition hover:text-slate-900 disabled:opacity-60"
+        "bubble-btn inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold disabled:opacity-60 pressable"
       }
     >
       {statusLabel}

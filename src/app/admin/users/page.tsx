@@ -7,7 +7,7 @@ type AdminUser = {
   id: string;
   email: string;
   username: string | null;
-  role: "USER" | "MOD" | "ADMIN";
+  role: "USER" | "TEACHER" | "MOD" | "ADMIN";
   bannedUntil: string | null;
   banReason: string | null;
   shadowBannedAt: string | null;
@@ -265,7 +265,7 @@ export default function AdminUsersPage() {
         />
         <button
           type="submit"
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+          className="bubble-btn-primary rounded-xl px-4 py-2 text-sm font-semibold pressable"
         >
           Найти
         </button>
@@ -332,6 +332,7 @@ export default function AdminUsersPage() {
                       className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
                     >
                       <option value="USER">USER</option>
+                      <option value="TEACHER">TEACHER</option>
                       <option value="MOD">MOD</option>
                       <option value="ADMIN">ADMIN</option>
                     </select>
@@ -358,7 +359,7 @@ export default function AdminUsersPage() {
                         type="button"
                         disabled={isSelf}
                         onClick={() => handleUnban(user.id)}
-                        className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 hover:text-slate-900 disabled:opacity-50"
+                        className="bubble-btn rounded-full px-3 py-1 text-xs font-semibold disabled:opacity-50 pressable"
                       >
                         Unban
                       </button>
@@ -367,7 +368,7 @@ export default function AdminUsersPage() {
                         type="button"
                         disabled={isSelf}
                         onClick={() => handleBan(user.id)}
-                        className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+                        className="bubble-btn-primary rounded-full px-3 py-1 text-xs font-semibold disabled:opacity-50 pressable"
                       >
                         Ban
                       </button>
@@ -377,7 +378,7 @@ export default function AdminUsersPage() {
                         type="button"
                         disabled={isSelf}
                         onClick={() => handleShadowUnban(user.id)}
-                        className="ml-2 rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 hover:text-slate-900 disabled:opacity-50"
+                        className="ml-2 bubble-btn rounded-full px-3 py-1 text-xs font-semibold disabled:opacity-50 pressable"
                       >
                         Unshadow
                       </button>
@@ -386,7 +387,7 @@ export default function AdminUsersPage() {
                         type="button"
                         disabled={isSelf}
                         onClick={() => handleShadowBan(user.id)}
-                        className="ml-2 rounded-full border border-slate-900 px-3 py-1 text-xs text-slate-900 disabled:opacity-50"
+                        className="ml-2 bubble-btn rounded-full px-3 py-1 text-xs font-semibold disabled:opacity-50 pressable"
                       >
                         Shadowban
                       </button>
@@ -404,7 +405,7 @@ export default function AdminUsersPage() {
           type="button"
           onClick={() => loadUsers({ cursor: nextCursor })}
           disabled={!canLoadMore}
-          className="rounded-full border border-slate-200 bg-white/80 px-5 py-2 text-sm text-slate-600 transition hover:text-slate-900 disabled:opacity-60"
+          className="bubble-btn rounded-full px-5 py-2 text-sm font-semibold disabled:opacity-60 pressable"
         >
           {loading ? "Загружаем..." : "Load more"}
         </button>

@@ -2,6 +2,8 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { performance } from "node:perf_hooks";
 import { type NextRequest } from "next/server";
 
+import { logError, normalizeError } from "@/lib/error-log";
+
 type ApiMetrics = {
   startMs: number;
   dbQueryCount: number;
@@ -23,6 +25,7 @@ export function withApiMetrics<T extends ApiHandler>(handler: T): T {
     const startMs = performance.now();
     const route = new URL(request.url).pathname;
     const method = request.method;
+    let thrownError: unknown;
 
     return metricsStore.run(
       { startMs, dbQueryCount: 0, route, method },
@@ -36,6 +39,7 @@ export function withApiMetrics<T extends ApiHandler>(handler: T): T {
             response = error;
             return error;
           }
+          thrownError = error;
           throw error;
         } finally {
           const store = metricsStore.getStore();
@@ -50,6 +54,21 @@ export function withApiMetrics<T extends ApiHandler>(handler: T): T {
             durationMs,
             dbQueryCount,
           });
+
+          if (thrownError && status >= 500) {
+            const { message, stack } = normalizeError(thrownError);
+            const forwardedFor = request.headers.get("x-forwarded-for") ?? "";
+            const ip = forwardedFor.split(",")[0]?.trim() || null;
+            void logError({
+              message,
+              stack,
+              route,
+              method,
+              status,
+              userAgent: request.headers.get("user-agent"),
+              ip,
+            });
+          }
         }
       }
     );

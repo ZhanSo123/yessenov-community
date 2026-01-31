@@ -140,13 +140,13 @@ export default function AdminAuditPage() {
         />
         <button
           type="submit"
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+          className="bubble-btn-primary rounded-xl px-4 py-2 text-sm font-semibold pressable"
         >
           Фильтр
         </button>
         <a
           href={`/api/admin/export/audit?range=7d`}
-          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700"
+          className="bubble-btn rounded-xl px-4 py-2 text-sm font-semibold pressable"
         >
           Export CSV
         </a>
@@ -196,7 +196,7 @@ export default function AdminAuditPage() {
           type="button"
           onClick={() => loadLogs({ cursor: nextCursor })}
           disabled={!canLoadMore}
-          className="rounded-full border border-slate-200 bg-white/80 px-5 py-2 text-sm text-slate-600 transition hover:text-slate-900 disabled:opacity-60"
+          className="bubble-btn rounded-full px-5 py-2 text-sm font-semibold disabled:opacity-60 pressable"
         >
           {loading ? "Загружаем..." : "Load more"}
         </button>

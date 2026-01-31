@@ -123,7 +123,7 @@ export default function AdminFeedbackPage() {
         <button
           type="button"
           onClick={() => loadFeedback({ cursor: nextCursor })}
-          className="rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 transition hover:text-slate-900"
+          className="bubble-btn rounded-full px-4 py-2 text-xs font-semibold pressable"
           disabled={loading}
         >
           Загрузить ещё

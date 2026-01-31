@@ -91,7 +91,7 @@ export default function UserSearchCard({
           type="button"
           onClick={() => onToggle?.(item)}
           disabled={disabled}
-          className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 disabled:opacity-60"
+          className="bubble-btn rounded-full px-3 py-1.5 text-xs font-semibold disabled:opacity-60 pressable"
         >
           {isPending ? "Обновляем..." : buttonLabel}
         </button>

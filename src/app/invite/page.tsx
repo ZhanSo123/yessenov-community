@@ -41,7 +41,7 @@ export default function InvitePage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f7f4ef] text-slate-900">
+    <div className="min-h-screen bg-white text-slate-900">
       <main className="mx-auto flex w-full max-w-lg flex-col gap-6 px-6 py-16">
         <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm">
           <div className="space-y-2">
@@ -72,7 +72,7 @@ export default function InvitePage() {
               type="button"
               onClick={handleSubmit}
               disabled={sending}
-              className="w-full rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+              className="bubble-btn-primary w-full rounded-full px-5 py-2 text-sm font-semibold disabled:opacity-60 pressable"
             >
               {sending ? "Проверяем..." : "Продолжить"}
             </button>

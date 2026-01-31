@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 
 type FollowButtonProps = {
@@ -16,9 +16,21 @@ export default function FollowButton({
   const [following, setFollowing] = useState(initialFollowing);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pulse, setPulse] = useState(false);
+  const prevFollowingRef = useRef(initialFollowing);
 
   const isUnauthed = status === "unauthenticated";
   const isLoading = status === "loading";
+
+  useEffect(() => {
+    if (!prevFollowingRef.current && following) {
+      setPulse(true);
+      const timer = window.setTimeout(() => setPulse(false), 220);
+      prevFollowingRef.current = following;
+      return () => window.clearTimeout(timer);
+    }
+    prevFollowingRef.current = following;
+  }, [following]);
 
   const handleToggle = async () => {
     setMessage("");
@@ -29,6 +41,9 @@ export default function FollowButton({
     }
 
     const previous = following;
+    if (navigator?.vibrate && !previous) {
+      navigator.vibrate(10);
+    }
     setFollowing(!previous);
     setLoading(true);
     try {
@@ -86,7 +101,9 @@ export default function FollowButton({
         type="button"
         onClick={handleToggle}
         disabled={isLoading || loading}
-        className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+        className={`bubble-btn-primary rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-60 pressable ${
+          pulse ? "animate-pop" : ""
+        }`}
       >
         {loading ? "Обновляем..." : following ? "Отписаться" : "Подписаться"}
       </button>

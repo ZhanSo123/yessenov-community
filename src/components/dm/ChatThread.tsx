@@ -217,7 +217,7 @@ export default function ChatThread({ conversationId }: { conversationId: string 
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#f7f4ef] text-slate-900">
+    <div className="flex min-h-screen flex-col bg-white text-slate-900">
       <div className="border-b border-slate-200 bg-white/80 px-6 py-4">
         <div className="mx-auto flex w-full max-w-3xl items-center gap-3">
           {otherParticipant?.image ? (
@@ -256,7 +256,7 @@ export default function ChatThread({ conversationId }: { conversationId: string 
             type="button"
             onClick={handleLoadMore}
             disabled={loadingMore}
-            className="self-center rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-300 disabled:opacity-60"
+            className="bubble-btn self-center rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-60 pressable"
           >
             {loadingMore ? "Загружаем..." : "Показать ещё"}
           </button>

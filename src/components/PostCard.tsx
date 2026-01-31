@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 import AppealButton from "@/components/AppealButton";
+import SharePostModal from "@/components/SharePostModal";
 import { type PostWithMeta } from "@/lib/post-types";
 
 type PostCardProps = {
@@ -20,6 +21,13 @@ type PostCardProps = {
   showDiscussionHint?: boolean;
   showReplyCount?: boolean;
   activityDot?: boolean;
+  menuItems?: {
+    key: string;
+    label: string;
+    onClick: () => void;
+    tone?: "default" | "danger";
+    disabled?: boolean;
+  }[];
 };
 
 export default function PostCard({
@@ -34,6 +42,7 @@ export default function PostCard({
   showDiscussionHint = false,
   showReplyCount = true,
   activityDot = false,
+  menuItems,
 }: PostCardProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -102,6 +111,9 @@ export default function PostCard({
     "idle" | "sending" | "error"
   >("idle");
   const [deletedLocal, setDeletedLocal] = useState(false);
+  const [likePulse, setLikePulse] = useState(false);
+  const prevLikedRef = useRef(post.viewerHasLiked);
+  const [shareOpen, setShareOpen] = useState(false);
   const isDeletedEffective = Boolean(post.deletedAt) || deletedLocal;
   const canDelete =
     status === "authenticated" &&
@@ -109,6 +121,34 @@ export default function PostCard({
     !isDeletedEffective &&
     typeof post.id === "number" &&
     session?.user?.id === post.author.id;
+  const reportTitle =
+    reportStatus === "sent"
+      ? "Отправлено"
+      : reportStatus === "sending"
+        ? "Отправляем..."
+        : reportStatus === "error"
+          ? "Ошибка"
+          : "Пожаловаться";
+  const canShare =
+    !isTemp &&
+    typeof post.id === "number" &&
+    !isHidden &&
+    !isDeletedEffective;
+  const extraMenuItems = menuItems ?? [];
+  const canShowMenu = canDelete || extraMenuItems.length > 0;
+
+  useEffect(() => {
+    const prev = prevLikedRef.current;
+    if (!prev && post.viewerHasLiked) {
+      setLikePulse(true);
+      const timer = window.setTimeout(() => {
+        setLikePulse(false);
+      }, 220);
+      prevLikedRef.current = post.viewerHasLiked;
+      return () => window.clearTimeout(timer);
+    }
+    prevLikedRef.current = post.viewerHasLiked;
+  }, [post.viewerHasLiked]);
 
   const handleReport = async () => {
     if (!canReport || typeof post.id !== "number") {
@@ -176,12 +216,13 @@ export default function PostCard({
   };
 
   return (
-    <article
-      className={`rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-sm transition ${
-        indent ? "ml-6 border-l-4 border-l-slate-200" : ""
-      } ${highlight ? "ring-1 ring-emerald-200 bg-emerald-50/40" : ""}`}
-    >
-      <div className="flex items-start gap-3">
+    <>
+      <article
+        className={`rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-sm transition ${
+          indent ? "ml-6 border-l-4 border-l-slate-200" : ""
+        } ${highlight ? "ring-1 ring-emerald-200 bg-emerald-50/40" : ""}`}
+      >
+        <div className="flex items-start gap-3">
         {profileHref ? (
           <Link
             href={profileHref}
@@ -251,25 +292,80 @@ export default function PostCard({
             {activityDot ? (
               <span className="text-xs text-emerald-500">•</span>
             ) : null}
-            {canDelete ? (
-              <div className="relative ml-auto">
-                <button
-                  type="button"
-                  onClick={() => setMenuOpen((open) => !open)}
-                  className="rounded-full px-2 py-1 text-xs text-slate-500 transition hover:bg-slate-100"
-                  aria-label="Меню"
-                >
-                  ⋯
-                </button>
-                {menuOpen ? (
-                  <div className="absolute right-0 z-10 mt-2 w-36 rounded-xl border border-slate-200 bg-white p-1 text-xs shadow-lg">
+            {canReport || canDelete ? (
+              <div className="relative ml-auto flex items-center gap-2">
+                {canReport ? (
+                  <button
+                    type="button"
+                    onClick={handleReport}
+                    className={`flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-500 transition hover:border-[#6495ED]/40 hover:text-[#6495ED] pressable ${
+                      reportStatus === "sent"
+                        ? "text-emerald-600"
+                        : reportStatus === "error"
+                          ? "text-rose-500"
+                          : ""
+                    }`}
+                    aria-label="Пожаловаться"
+                    title={reportTitle}
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      className="h-4 w-4"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M6 4h9l-1.2 3H20l-4 6H6V4Z"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                      <path d="M6 13v7" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                ) : null}
+                {canShowMenu ? (
+                  <div className="relative">
                     <button
                       type="button"
-                      onClick={handleDelete}
-                      className="w-full rounded-lg px-3 py-2 text-left text-rose-600 transition hover:bg-rose-50"
+                      onClick={() => setMenuOpen((open) => !open)}
+                      className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-500 transition hover:border-[#6495ED]/40 hover:text-[#6495ED]"
+                      aria-label="Меню"
                     >
-                      Удалить
+                      ⋯
                     </button>
+                    {menuOpen ? (
+                      <div className="absolute right-0 z-10 mt-2 w-36 rounded-xl border border-slate-200 bg-white p-1 text-xs shadow-lg">
+                        {extraMenuItems.map((item) => (
+                          <button
+                            key={item.key}
+                            type="button"
+                            onClick={() => {
+                              setMenuOpen(false);
+                              item.onClick();
+                            }}
+                            disabled={item.disabled}
+                            className={`w-full rounded-lg px-3 py-2 text-left transition ${
+                              item.tone === "danger"
+                                ? "text-rose-600 hover:bg-rose-50"
+                                : "text-slate-700 hover:bg-slate-50"
+                            } disabled:opacity-60`}
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                        {canDelete ? (
+                          <button
+                            type="button"
+                            onClick={handleDelete}
+                            className="w-full rounded-lg px-3 py-2 text-left text-rose-600 transition hover:bg-rose-50"
+                          >
+                            Удалить
+                          </button>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </div>
@@ -309,16 +405,34 @@ export default function PostCard({
               <button
                 type="button"
                 onClick={() => {
+                  if (navigator?.vibrate && post.viewerHasLiked === false) {
+                    navigator.vibrate(8);
+                  }
                   if (!isTemp && onLike && typeof post.id === "number") {
                     onLike(post.id);
                   }
                 }}
                 disabled={isTemp}
-                className={`transition hover:text-slate-900 ${
-                  post.viewerHasLiked ? "text-slate-900" : ""
-                }`}
+                className={`flex items-center gap-1 transition hover:text-slate-900 pressable ${
+                  post.viewerHasLiked ? "text-[#6495ED]" : ""
+                } ${likePulse ? "animate-pop" : ""}`}
+                aria-label="Лайк"
               >
-                {post.viewerHasLiked ? "Liked" : "Like"} · {post._count.likes}
+                <svg
+                  viewBox="0 0 24 24"
+                  fill={post.viewerHasLiked ? "currentColor" : "none"}
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  className="h-4 w-4"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M12 20s-7-4.4-7-9a4 4 0 0 1 7-2.3A4 4 0 0 1 19 11c0 4.6-7 9-7 9Z"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <span>{post._count.likes}</span>
               </button>
               {onReplyToggle ? (
                 <button
@@ -329,27 +443,62 @@ export default function PostCard({
                     }
                   }}
                   disabled={isTemp}
-                  className="transition hover:text-slate-900"
+                  className="flex items-center gap-1 transition hover:text-slate-900 pressable"
+                  aria-label="Ответить"
                 >
-                  {showReplyCount ? `Reply · ${post._count.replies}` : "Reply"}
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    className="h-4 w-4"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M10 7 5 12l5 5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M5 12h7a7 7 0 0 1 7 7"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  {showReplyCount ? <span>{post._count.replies}</span> : null}
                 </button>
               ) : null}
-              <span className="text-xs text-slate-400">
-                Просмотры · {post.viewCount ?? 0}
-              </span>
-              {canReport ? (
+              {canShare ? (
                 <button
                   type="button"
-                  onClick={handleReport}
-                  className="transition hover:text-slate-900"
+                  onClick={() => setShareOpen(true)}
+                  className="flex items-center gap-1 transition hover:text-slate-900 pressable"
+                  aria-label="Переслать"
+                  title="Переслать"
                 >
-                  {reportStatus === "sent"
-                    ? "Отправлено"
-                    : reportStatus === "sending"
-                      ? "Отправляем..."
-                      : reportStatus === "error"
-                        ? "Ошибка"
-                        : "Пожаловаться"}
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    className="h-4 w-4"
+                    aria-hidden="true"
+                  >
+                    <path
+                      d="M5 12h9"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M11 7l5 5-5 5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                    <path
+                      d="M19 5v14"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
                 </button>
               ) : null}
             </div>
@@ -359,6 +508,14 @@ export default function PostCard({
           ) : null}
         </div>
       </div>
-    </article>
+      </article>
+      {canShare ? (
+        <SharePostModal
+          post={post}
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+        />
+      ) : null}
+    </>
   );
 }

@@ -18,6 +18,7 @@ import {
   ensureNotBanned,
   getOptionalUser,
 } from "@/lib/auth";
+import { canAccessCommunity, getAccessibleCommunityIds } from "@/lib/community-access";
 import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { PostCreateSchema } from "@/lib/validators";
@@ -70,6 +71,18 @@ export async function GET(request: NextRequest) {
     const viewer = await getOptionalUser();
     const viewerId = viewer?.id ?? null;
     const viewerCanModerate = viewer ? canModerate(viewer) : false;
+    const accessibleCommunityIds = viewerCanModerate
+      ? null
+      : await getAccessibleCommunityIds(
+          viewer
+            ? {
+                id: viewer.id,
+                role: viewer.role,
+                faculty: viewer.faculty ?? null,
+                course: viewer.course ?? null,
+              }
+            : null
+        );
 
     const where: Prisma.PostWhereInput = {
       replyToId: null,
@@ -80,14 +93,44 @@ export async function GET(request: NextRequest) {
     if (communitySlug) {
       const community = await prisma.community.findUnique({
         where: { slug: communitySlug },
-        select: { id: true },
+        select: {
+          id: true,
+          type: true,
+          isPrivate: true,
+          facultyCode: true,
+          courseYear: true,
+        },
       });
 
       if (!community) {
         return apiError("NOT_FOUND", 404);
       }
 
+      const hasAccess = await canAccessCommunity(
+        community,
+        viewer
+          ? {
+              id: viewer.id,
+              role: viewer.role,
+              faculty: viewer.faculty ?? null,
+              course: viewer.course ?? null,
+            }
+          : null
+      );
+      if (!hasAccess) {
+        return apiError("FORBIDDEN", 403, { message: "PRIVATE_COMMUNITY" });
+      }
+
       where.communityId = community.id;
+    } else if (accessibleCommunityIds !== null) {
+      const allowed =
+        accessibleCommunityIds.length > 0
+          ? [
+              { communityId: null },
+              { communityId: { in: accessibleCommunityIds } },
+            ]
+          : [{ communityId: null }];
+      andFilters.push({ OR: allowed });
     }
 
     if (!viewerCanModerate) {
@@ -201,7 +244,13 @@ export async function POST(request: NextRequest) {
     if (!resolvedCommunityId && communitySlug) {
       const community = await prisma.community.findUnique({
         where: { slug: communitySlug },
-        select: { id: true },
+        select: {
+          id: true,
+          type: true,
+          isPrivate: true,
+          facultyCode: true,
+          courseYear: true,
+        },
       });
 
       if (!community) {
@@ -209,6 +258,19 @@ export async function POST(request: NextRequest) {
       }
 
       resolvedCommunityId = community.id;
+
+      const hasAccess = await canAccessCommunity(
+        community,
+        {
+          id: author.id,
+          role: author.role,
+          faculty: author.faculty ?? null,
+          course: author.course ?? null,
+        }
+      );
+      if (!hasAccess) {
+        return apiError("FORBIDDEN", 403, { message: "PRIVATE_COMMUNITY" });
+      }
     }
 
     let rootPostId: number | null = null;
@@ -250,6 +312,31 @@ export async function POST(request: NextRequest) {
         }
 
         cursorId = parent.replyToId;
+      }
+    }
+
+    if (resolvedCommunityId) {
+      const community = await prisma.community.findUnique({
+        where: { id: resolvedCommunityId },
+        select: {
+          id: true,
+          type: true,
+          isPrivate: true,
+          facultyCode: true,
+          courseYear: true,
+        },
+      });
+      if (!community) {
+        return apiError("BAD_REQUEST", 400);
+      }
+      const hasAccess = await canAccessCommunity(community, {
+        id: author.id,
+        role: author.role,
+        faculty: author.faculty ?? null,
+        course: author.course ?? null,
+      });
+      if (!hasAccess) {
+        return apiError("FORBIDDEN", 403, { message: "PRIVATE_COMMUNITY" });
       }
     }
 

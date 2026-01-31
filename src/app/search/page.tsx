@@ -210,7 +210,7 @@ export default function SearchPage() {
   }, [normalizedQuery, error, items.length, loading]);
 
   return (
-    <div className="min-h-screen bg-[#f7f4ef] text-slate-900">
+    <div className="min-h-screen bg-white text-slate-900">
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-12">
         <header className="space-y-2">
           <h1 className="text-3xl font-semibold">Поиск</h1>
@@ -280,7 +280,7 @@ export default function SearchPage() {
             type="button"
             onClick={handleLoadMore}
             disabled={loadingMore}
-            className="self-start rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 disabled:opacity-60"
+            className="bubble-btn self-start rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-60 pressable"
           >
             {loadingMore ? "Загружаем..." : "Показать ещё"}
           </button>

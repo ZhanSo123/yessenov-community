@@ -1,0 +1,194 @@
+# Архитектура и стек Yessenov Community
+
+## 1) Кратко о проекте
+Yessenov Community — студенческая социальная сеть: лента постов, ответы, сообщества, подписки, личные сообщения, уведомления, модерация и админ‑панель.
+
+## 2) Технологический стек (full‑stack)
+
+### Frontend
+- Next.js 16.1.3 (App Router)
+- React 19.2.3
+- TypeScript 5
+- Tailwind CSS 4 + PostCSS
+- next/font (Geist)
+
+### Backend
+- Next.js Route Handlers (`src/app/api/*`)
+- Auth.js / NextAuth v5.0.0‑beta.30
+- Prisma 6.19.2
+- Zod 4.3.5 (валидация запросов)
+
+### База данных
+- PostgreSQL через Prisma (`DATABASE_URL`)
+- Миграции Prisma (`prisma/migrations`)
+
+### Инфраструктура и tooling
+- Vercel (скрипт `scripts/vercel-build.mjs` с `prisma migrate deploy` + `next build`)
+- ESLint 9
+- Vitest 2.1.9
+
+### Дополнительно
+- Supabase JS SDK (заготовка клиента в `src/lib/supabase.ts` — используется при наличии `NEXT_PUBLIC_SUPABASE_URL` и `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
+
+## 3) Архитектурная схема
+
+```
+[ Browser ]
+    |
+    |  (Server Components / Client Components)
+    v
+[ Next.js App Router ]
+    |
+    |  Route Handlers: /api/*  (Node.js runtime)
+    v
+[ Service Layer (src/lib) ]
+    |  - auth, rate-limit, abuse rules
+    |  - notifications, audit-log
+    |  - validators, pagination
+    v
+[ Prisma Client ]
+    |
+    v
+[ PostgreSQL ]
+```
+
+Ключевая идея: вся серверная логика находится в Route Handlers и общих `lib`‑модулях. UI строится на App Router, часть компонентов — client‑компоненты.
+
+## 4) Структура репозитория
+
+```
+/ARCHITECTURE.md
+/README.md
+/next.config.ts
+/prisma
+  /schema.prisma
+  /migrations
+  /seed.mjs
+/scripts
+  /vercel-build.mjs
+/src
+  /app            # маршруты (App Router) + API routes
+  /components     # UI компоненты
+  /lib            # доменная/серверная логика
+  /types          # типы (расширения NextAuth)
+/tests            # Vitest
+```
+
+## 5) Основные домены и маршруты
+
+### 5.1. Публичные страницы (UI)
+- `/` — лента
+- `/welcome` — стартовая
+- `/auth/*` — вход/регистрация через Google
+- `/invite`, `/onboarding` — инвайты и онбординг
+- `/p/[id]` — пост и ветка ответов
+- `/u/[username]` — профиль пользователя
+- `/communities`, `/c/[slug]` — сообщества
+- `/messages` — личные сообщения
+- `/notifications` — уведомления
+- `/admin/*` — админ‑панель
+
+### 5.2. API (Route Handlers)
+Группы и назначение:
+
+- **Auth**: `/api/auth/[...nextauth]`, `/api/auth/onboarding`
+- **Feed/Posts**: `/api/feed`, `/api/posts`, `/api/posts/[id]`, `/api/posts/reply`, `/api/posts/repost`, `/api/posts/[id]/replies`
+- **Likes/Follow**: `/api/likes/toggle`, `/api/follow/toggle`
+- **Users**: `/api/users/[username]`, `/api/users/[username]/posts`, `/api/users/[username]/followers`, `/api/users/[username]/following`, `/api/me/profile`
+- **Communities**: `/api/communities`
+- **Notifications**: `/api/notifications`, `/api/notifications/unread-count`, `/api/notifications/mark-read`, `/api/notifications/mark-all-read`
+- **Search**: `/api/search/users`
+- **DM**: `/api/dm/inbox`, `/api/dm/start`, `/api/dm/[id]`, `/api/dm/[id]/send`, `/api/dm/[id]/read`
+- **Reports/Appeals**: `/api/reports`, `/api/appeals`
+- **Feedback**: `/api/feedback`
+- **Admin**: `/api/admin/*` (модерация, аудит, метрики, экспорт, очереди)
+- **Dev**: `/api/dev/*` (health/runtime/auth/debug)
+
+> Многие API routes помечены `export const runtime = "nodejs"`, что важно для NextAuth + Prisma.
+
+## 6) Данные и модели (Prisma)
+Ключевые сущности:
+
+- **User**: профиль, роли, бан/шадоубан, онбординг
+- **Post**: посты и ответы (ответы хранятся как `Post` с `replyToId`)
+- **Comment**: отдельная модель комментариев
+- **Community** и **CommunityModerator**
+- **Like**, **Follow**
+- **Notification** (типы: REPLY, LIKE, FOLLOW, MENTION)
+- **Conversation**, **ConversationParticipant**, **Message** (личные сообщения)
+- **Report**, **Appeal** (модерация)
+- **AuditLog**, **ModerationAction**, **Feedback**, **PhoneOtp**
+
+Индексы и уникальные ограничения заданы в `prisma/schema.prisma` для ленты, лайков, подписок и модерации.
+
+## 7) Аутентификация и сессии
+- Auth.js / NextAuth (Google OAuth)
+- Сессии хранятся в базе (strategy: `database`)
+- `src/auth.ts` — конфиг провайдера, коллбек session
+- `src/lib/auth.ts` — вспомогательные функции (requireUser, requireRole, invite checks)
+- `src/types/next-auth.d.ts` — расширение типов session/user
+
+## 8) Безопасность и модерация
+- **Rate limiting**: `src/lib/rate-limit.ts` (in‑memory, для продакшена нужен shared‑store)
+- **Anti‑abuse**: `src/lib/abuse-rules.ts`, `src/lib/abuse-tracker.ts`
+- **Bans/Shadow bans** и роль‑бэйзд доступ (`Role`: USER/MOD/ADMIN)
+- **Audit log**: `src/lib/audit-log.ts` + `AuditLog` модель
+
+## 9) Уведомления
+- `src/lib/notifications.ts` — создание уведомлений, дедупликация LIKE/FOLLOW, @mention
+- Уведомления хранятся в `Notification` и доступны через `/api/notifications*`
+
+## 10) Observability и диагностика
+- `src/lib/api-metrics.ts` — метрики запросов (duration, status, dbQueryCount)
+- `GET /api/dev/health` — проверка подключения Prisma/DB (только не‑prod)
+- `GET /api/dev/runtime` — runtime/host/env
+
+## 11) Конфигурация окружения
+Базовые переменные:
+
+```
+DATABASE_URL=postgresql://USER:PASSWORD@HOST/DB?sslmode=require
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=...
+AUTH_TRUST_HOST=true
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+```
+
+Дополнительно (по README):
+
+```
+INVITE_ONLY=true
+INVITE_CODES=alpha1,alpha2,alpha3
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+```
+
+## 12) Тесты
+- Vitest: `npm run test`
+
+## 13) Потоки (high‑level)
+
+### Создание поста
+1) Клиент отправляет POST `/api/posts`
+2) Валидация Zod → проверка rate‑limit → auth
+3) Prisma сохраняет `Post`
+4) Создаются уведомления (mentions/replies)
+
+### Уведомления
+- при лайке/подписке/ответе создаются `Notification`
+- есть дедупликация для лайков и подписок
+
+### Модерация
+- репорты создаются в `/api/reports`
+- админ/модератор управляет через `/api/admin/*`
+- аудит пишется в `AuditLog`
+
+## 14) Что можно улучшить (технический долг)
+- Вынести rate‑limit/abuse store в Redis или другой shared‑store
+- Добавить системные интеграционные тесты для ключевых API‑потоков
+- Вынести API метрики в реальную observability‑систему (OpenTelemetry/Datadog)
+
+---
+
+Если нужно, могу дополнить документ диаграммами (C4 или Mermaid) и описать конкретный модуль/фичу более глубоко.

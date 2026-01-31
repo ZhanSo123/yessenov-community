@@ -89,6 +89,14 @@ export default function ThreadPage() {
         return;
       }
 
+      if (response.status === 403) {
+        setPost(null);
+        setReplies([]);
+        setNextCursor(null);
+        setError("Это закрытое сообщество.");
+        return;
+      }
+
       if (!response.ok) {
         throw new Error("Не удалось загрузить тред");
       }
@@ -358,7 +366,7 @@ export default function ThreadPage() {
   );
 
   return (
-    <div className="relative min-h-screen bg-[#f7f4ef] text-slate-900">
+    <div className="relative min-h-screen bg-white text-slate-900">
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 pb-16 pt-10">
         <Link href="/" className="text-xs text-slate-500">
           ← Назад к ленте
@@ -441,7 +449,7 @@ export default function ThreadPage() {
             type="button"
             onClick={loadMoreReplies}
             disabled={!canLoadMore}
-            className="self-center rounded-full border border-slate-200 bg-white/80 px-5 py-2 text-sm text-slate-600 transition hover:text-slate-900 disabled:opacity-60"
+            className="bubble-btn self-center rounded-full px-5 py-2 text-sm disabled:opacity-60 pressable"
           >
             {loadingMore ? "Загружаем..." : "Load more"}
           </button>

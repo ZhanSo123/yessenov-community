@@ -79,6 +79,10 @@ type ProfileValidationResult =
         usernameLower: string;
         displayName: string | null;
         bio: string | null;
+        image?: string | null;
+        faculty?: string | null;
+        course?: number | null;
+        interests?: string[];
       };
     }
   | {
@@ -89,7 +93,11 @@ type ProfileValidationResult =
           | "INVALID_USERNAME"
           | "RESERVED_USERNAME"
           | "INVALID_DISPLAY_NAME"
-          | "INVALID_BIO";
+          | "INVALID_BIO"
+          | "INVALID_IMAGE"
+          | "INVALID_FACULTY"
+          | "INVALID_COURSE"
+          | "INVALID_INTERESTS";
         message: string;
       };
     };
@@ -144,6 +152,120 @@ export const validateProfile = (payload: unknown): ProfileValidationResult => {
     bio = trimmed.length > 0 ? trimmed : null;
   }
 
+  let image: string | null | undefined = undefined;
+  if (Object.prototype.hasOwnProperty.call(record, "image")) {
+    if (record.image === null) {
+      image = null;
+    } else if (typeof record.image === "string") {
+      const trimmed = record.image.trim();
+      if (!trimmed) {
+        image = null;
+      } else {
+        const isDataImage = trimmed.startsWith("data:image/");
+        const isHttp = /^https?:\/\//.test(trimmed);
+        if (!isDataImage && !isHttp) {
+          return {
+            ok: false,
+            error: { code: "INVALID_IMAGE", message: "Image format is invalid." },
+          };
+        }
+        if (trimmed.length > 200_000) {
+          return {
+            ok: false,
+            error: { code: "INVALID_IMAGE", message: "Image is too large." },
+          };
+        }
+        image = trimmed;
+      }
+    } else {
+      return {
+        ok: false,
+        error: { code: "INVALID_IMAGE", message: "Image is invalid." },
+      };
+    }
+  }
+
+  let faculty: string | null | undefined = undefined;
+  if (Object.prototype.hasOwnProperty.call(record, "faculty")) {
+    if (record.faculty === null) {
+      faculty = null;
+    } else if (typeof record.faculty === "string") {
+      const trimmed = record.faculty.trim();
+      if (trimmed.length > 80) {
+        return {
+          ok: false,
+          error: { code: "INVALID_FACULTY", message: "Faculty is too long." },
+        };
+      }
+      faculty = trimmed.length > 0 ? trimmed : null;
+    } else {
+      return {
+        ok: false,
+        error: { code: "INVALID_FACULTY", message: "Faculty is invalid." },
+      };
+    }
+  }
+
+  let course: number | null | undefined = undefined;
+  if (Object.prototype.hasOwnProperty.call(record, "course")) {
+    if (record.course === null || record.course === "") {
+      course = null;
+    } else if (typeof record.course === "number" || typeof record.course === "string") {
+      const parsed = Number(record.course);
+      if (!Number.isInteger(parsed) || parsed < 1 || parsed > 6) {
+        return {
+          ok: false,
+          error: { code: "INVALID_COURSE", message: "Course is invalid." },
+        };
+      }
+      course = parsed;
+    } else {
+      return {
+        ok: false,
+        error: { code: "INVALID_COURSE", message: "Course is invalid." },
+      };
+    }
+  }
+
+  let interests: string[] | undefined = undefined;
+  if (Object.prototype.hasOwnProperty.call(record, "interests")) {
+    const raw = record.interests;
+    let values: string[] = [];
+    if (typeof raw === "string") {
+      values = raw
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    } else if (Array.isArray(raw)) {
+      values = raw
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter(Boolean);
+    } else if (raw === null) {
+      values = [];
+    } else {
+      return {
+        ok: false,
+        error: { code: "INVALID_INTERESTS", message: "Interests are invalid." },
+      };
+    }
+
+    const unique = Array.from(new Set(values));
+    if (unique.length > 10) {
+      return {
+        ok: false,
+        error: { code: "INVALID_INTERESTS", message: "Too many interests." },
+      };
+    }
+    if (unique.some((item) => item.length > 24)) {
+      return {
+        ok: false,
+        error: { code: "INVALID_INTERESTS", message: "Interest too long." },
+      };
+    }
+    interests = unique;
+  }
+
   return {
     ok: true,
     data: {
@@ -151,6 +273,10 @@ export const validateProfile = (payload: unknown): ProfileValidationResult => {
       usernameLower: usernameResult.usernameLower,
       displayName,
       bio,
+      image,
+      faculty,
+      course,
+      interests,
     },
   };
 };
@@ -218,21 +344,21 @@ export const ShadowBanSchema = z.object({
 });
 
 export const UserRoleSchema = z.object({
-  role: z.enum(["USER", "MOD", "ADMIN"]),
+  role: z.enum(["USER", "TEACHER", "MOD", "ADMIN"]),
 });
 
-export const CommunityModRoleSchema = z.enum(["MOD", "OWNER"]);
+export const CommunityMemberRoleSchema = z.enum(["MEMBER", "MOD", "OWNER"]);
 
-export const CommunityModSchema = z
+export const CommunityMemberSchema = z
   .object({
     userId: z.string().trim().min(1).optional(),
     email: z.string().trim().email().optional(),
     username: z.string().trim().min(1).max(32).optional(),
-    role: CommunityModRoleSchema.optional(),
+    role: CommunityMemberRoleSchema.optional(),
   })
   .refine(
     (value) => Boolean(value.userId || value.email || value.username),
-    { message: "Missing moderator identifier" }
+    { message: "Missing member identifier" }
   );
 
 export const BulkActionSchema = z.object({
@@ -276,6 +402,47 @@ export const FeedbackCreateSchema = z.object({
   message: z.string().trim().min(1).max(1000),
   currentPath: z.string().trim().min(1).max(200),
 });
+
+export const PinPostSchema = z.object({
+  postId: z.number().int().nullable(),
+});
+
+export const CommunityCreateSchema = z
+  .object({
+    slug: z.string().trim().min(1).max(64),
+    title: z.string().trim().min(1).max(128),
+    description: z.string().trim().max(500).optional().default(""),
+    type: z.enum(["OPEN", "FACULTY", "COURSE", "TEACHERS"]).optional(),
+    isPrivate: z.boolean().optional(),
+    facultyCode: z.string().trim().max(16).optional(),
+    courseYear: z.coerce.number().int().min(1).max(6).optional(),
+  })
+  .superRefine((data, ctx) => {
+    const type = data.type ?? "OPEN";
+    if (type === "FACULTY" && !data.facultyCode) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "FACULTY_CODE_REQUIRED",
+        path: ["facultyCode"],
+      });
+    }
+    if (type === "COURSE") {
+      if (!data.facultyCode) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "FACULTY_CODE_REQUIRED",
+          path: ["facultyCode"],
+        });
+      }
+      if (!data.courseYear) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "COURSE_YEAR_REQUIRED",
+          path: ["courseYear"],
+        });
+      }
+    }
+  });
 
 export const RegisterSchema = z.object({
   email: z.string().trim().email(),

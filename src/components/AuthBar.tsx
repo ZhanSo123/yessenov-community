@@ -90,7 +90,7 @@ export default function AuthBar() {
           <div className="flex items-center gap-3">
             <Link
               href="/notifications"
-              className="relative rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300"
+              className="bubble-btn relative rounded-full px-4 py-2 text-sm font-semibold pressable"
             >
               Уведомления
               {unreadCount > 0 ? (
@@ -102,7 +102,7 @@ export default function AuthBar() {
             <button
               type="button"
               onClick={() => signOut({ callbackUrl: "/" })}
-              className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+              className="bubble-btn-primary rounded-full px-4 py-2 text-sm font-semibold pressable"
             >
               Выйти
             </button>
@@ -111,7 +111,7 @@ export default function AuthBar() {
           <div className="flex flex-wrap gap-2">
             <Link
               href="/welcome"
-              className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+              className="bubble-btn-primary rounded-full px-4 py-2 text-sm font-semibold pressable"
             >
               Войти
             </Link>
@@ -119,7 +119,7 @@ export default function AuthBar() {
               type="button"
               onClick={() => signIn("google")}
               disabled={!canSignIn || status === "loading"}
-              className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
+              className="bubble-btn rounded-full px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 pressable"
             >
               Google
             </button>

@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 import PostCard from "@/components/PostCard";
@@ -16,6 +15,7 @@ type ProfileResponse = {
     bio: string | null;
     image: string | null;
     createdAt: string;
+    pinnedPostId: number | null;
     stats: {
       postsCount: number;
       followersCount: number;
@@ -60,6 +60,35 @@ type FollowListResponse = {
   error?: string;
 };
 
+type TabKey = "posts" | "replies";
+
+const PROFILE_TABS = [
+  { key: "posts", label: "Посты", endpoint: "posts" },
+  { key: "replies", label: "Ответы", endpoint: "replies" },
+] as const satisfies readonly {
+  key: TabKey;
+  label: string;
+  endpoint: "posts" | "replies";
+}[];
+
+type TabState = {
+  items: PostWithMeta[];
+  loading: boolean;
+  loaded: boolean;
+  error: string | null;
+  nextCursor: string | null;
+  totalCount: number;
+};
+
+const createTabState = (): TabState => ({
+  items: [],
+  loading: false,
+  loaded: false,
+  error: null,
+  nextCursor: null,
+  totalCount: 0,
+});
+
 const formatMonthYear = (value: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
@@ -71,6 +100,7 @@ const formatMonthYear = (value: string) => {
 export default function ProfileClient() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const usernameParam =
     typeof params.username === "string" ? params.username : "";
   const { status } = useSession();
@@ -78,14 +108,15 @@ export default function ProfileClient() {
   const isLoadingSession = status === "loading";
 
   const [profile, setProfile] = useState<ProfileResponse["data"] | null>(null);
-  const [posts, setPosts] = useState<PostWithMeta[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadingPosts, setLoadingPosts] = useState(true);
   const [error, setError] = useState("");
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [followSaving, setFollowSaving] = useState(false);
   const [dmLoading, setDmLoading] = useState(false);
   const [dmError, setDmError] = useState("");
+  const [pinnedPost, setPinnedPost] = useState<PostWithMeta | null>(null);
+  const [pinSaving, setPinSaving] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement | null>(null);
   const [overlayOpen, setOverlayOpen] = useState(false);
   const [overlayMode, setOverlayMode] = useState<"followers" | "following">(
     "followers"
@@ -95,13 +126,61 @@ export default function ProfileClient() {
   const [overlayLoadingMore, setOverlayLoadingMore] = useState(false);
   const [overlayNextCursor, setOverlayNextCursor] = useState<string | null>(null);
   const [overlayError, setOverlayError] = useState("");
+  const [shareStatus, setShareStatus] = useState("");
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const [followPulse, setFollowPulse] = useState(false);
+  const prevFollowingRef = useRef<boolean | null>(null);
+  const [tabState, setTabState] = useState<Record<TabKey, TabState>>({
+    posts: createTabState(),
+    replies: createTabState(),
+  });
+
+  const activeTab = useMemo<TabKey>(() => {
+    const value = searchParams.get("tab");
+    return value === "replies" ? "replies" : "posts";
+  }, [searchParams]);
+
+  const setTab = useCallback(
+    (next: TabKey) => {
+      if (!usernameParam) {
+        return;
+      }
+      const params = new URLSearchParams(searchParams);
+      if (next === "posts") {
+        params.delete("tab");
+      } else {
+        params.set("tab", next);
+      }
+      const query = params.toString();
+      router.replace(`/u/${usernameParam}${query ? `?${query}` : ""}`);
+    },
+    [router, searchParams, usernameParam]
+  );
 
   const handleDeletedPost = (postId: number) => {
-    setPosts((current) => current.filter((post) => post.id !== postId));
+    setTabState((current) => {
+      const next = { ...current } as Record<TabKey, TabState>;
+      (Object.keys(next) as TabKey[]).forEach((key) => {
+        const tab = next[key];
+        if (!tab.items.some((post) => post.id === postId)) {
+          return;
+        }
+        next[key] = {
+          ...tab,
+          items: tab.items.filter((post) => post.id !== postId),
+        };
+      });
+      return next;
+    });
     setProfile((current) => {
       if (!current) {
         return current;
+      }
+      const shouldClearPin = current.pinnedPostId === postId;
+      if (activeTab !== "posts") {
+        return shouldClearPin
+          ? { ...current, pinnedPostId: null }
+          : current;
       }
       return {
         ...current,
@@ -109,13 +188,77 @@ export default function ProfileClient() {
           ...current.stats,
           postsCount: Math.max(0, current.stats.postsCount - 1),
         },
+        pinnedPostId: shouldClearPin ? null : current.pinnedPostId,
       };
     });
+    if (profile?.pinnedPostId === postId) {
+      setPinnedPost(null);
+    }
   };
 
   const handleDeleteError = (message: string) => {
     setError(message);
   };
+
+  const loadTab = useCallback(
+    async (tab: TabKey) => {
+      if (!usernameParam) {
+        return;
+      }
+      const config = PROFILE_TABS.find((entry) => entry.key === tab);
+      if (!config) {
+        return;
+      }
+
+      setTabState((current) => ({
+        ...current,
+        [tab]: {
+          ...current[tab],
+          loading: true,
+          error: null,
+        },
+      }));
+
+      try {
+        const response = await fetch(
+          `/api/users/${usernameParam}/${config.endpoint}`,
+          { credentials: "include" }
+        );
+        if (!response.ok) {
+          throw new Error("Не удалось загрузить контент.");
+        }
+        const payload = (await response.json()) as PostsResponse;
+        setTabState((current) => ({
+          ...current,
+          [tab]: {
+            ...current[tab],
+            items: payload.data ?? [],
+            nextCursor: payload.nextCursor ?? null,
+            totalCount: payload.totalCount ?? current[tab].totalCount,
+            loading: false,
+            loaded: true,
+            error: null,
+          },
+        }));
+      } catch (fetchError) {
+        setTabState((current) => ({
+          ...current,
+          [tab]: {
+            ...current[tab],
+            items: [],
+            nextCursor: null,
+            loading: false,
+            loaded: true,
+            error:
+              fetchError instanceof Error
+                ? fetchError.message
+                : "Ошибка загрузки",
+          },
+        }));
+      }
+    },
+    [usernameParam]
+  );
 
   useEffect(() => {
     let active = true;
@@ -153,40 +296,225 @@ export default function ProfileClient() {
       }
     };
 
-    const loadPosts = async () => {
-      setLoadingPosts(true);
-      try {
-        const response = await fetch(`/api/users/${usernameParam}/posts`, {
-          credentials: "include",
-        });
-        if (!response.ok) {
-          throw new Error("Не удалось загрузить посты.");
-        }
-        const payload = (await response.json()) as PostsResponse;
-        if (active) {
-          setPosts(payload.data ?? []);
-          setNextCursor(payload.nextCursor ?? null);
-        }
-      } catch {
-        if (active) {
-          setPosts([]);
-        }
-      } finally {
-        if (active) {
-          setLoadingPosts(false);
-        }
-      }
-    };
-
     if (usernameParam) {
+      setTabState({
+        posts: createTabState(),
+        replies: createTabState(),
+      });
+      setPinnedPost(null);
       loadProfile();
-      loadPosts();
     }
 
     return () => {
       active = false;
     };
   }, [router, usernameParam]);
+
+  useEffect(() => {
+    if (!usernameParam) {
+      return;
+    }
+    const tab = tabState[activeTab];
+    if (!tab.loaded && !tab.loading) {
+      loadTab(activeTab);
+    }
+  }, [activeTab, loadTab, tabState, usernameParam]);
+
+  useEffect(() => {
+    const following = profile?.viewer?.isFollowing ?? null;
+    if (prevFollowingRef.current === null) {
+      prevFollowingRef.current = following;
+      return;
+    }
+    if (!prevFollowingRef.current && following) {
+      setFollowPulse(true);
+      const timer = window.setTimeout(() => setFollowPulse(false), 220);
+      prevFollowingRef.current = following;
+      return () => window.clearTimeout(timer);
+    }
+    prevFollowingRef.current = following;
+  }, [profile?.viewer?.isFollowing]);
+
+  useEffect(() => {
+    if (!shareStatus) {
+      return;
+    }
+    const timer = window.setTimeout(() => setShareStatus(""), 2200);
+    return () => window.clearTimeout(timer);
+  }, [shareStatus]);
+
+  useEffect(() => {
+    if (!profileMenuOpen) {
+      return;
+    }
+    const handleClick = (event: MouseEvent) => {
+      if (!profileMenuRef.current) {
+        return;
+      }
+      if (!profileMenuRef.current.contains(event.target as Node)) {
+        setProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [profileMenuOpen]);
+
+  useEffect(() => {
+    if (!profile?.pinnedPostId) {
+      setPinnedPost(null);
+      return;
+    }
+    let active = true;
+    const loadPinned = async () => {
+      try {
+        const response = await fetch(`/api/posts/${profile.pinnedPostId}`, {
+          credentials: "include",
+        });
+        if (!response.ok) {
+          throw new Error("failed");
+        }
+        const payload = (await response.json()) as {
+          data?: { post?: PostWithMeta };
+        };
+        if (active) {
+          setPinnedPost(payload.data?.post ?? null);
+        }
+      } catch {
+        if (active) {
+          setPinnedPost(null);
+        }
+      }
+    };
+    loadPinned();
+    return () => {
+      active = false;
+    };
+  }, [profile?.pinnedPostId]);
+
+  const handleShareProfile = async () => {
+    if (!profile?.username) {
+      return;
+    }
+    const url = `${window.location.origin}/u/${profile.username}`;
+    try {
+      if (navigator?.share) {
+        await navigator.share({
+          title: profile.displayName ?? `@${profile.username}`,
+          url,
+        });
+        setShareStatus("Поделились ссылкой");
+        return;
+      }
+      if (navigator?.clipboard) {
+        await navigator.clipboard.writeText(url);
+        setShareStatus("Ссылка скопирована");
+        return;
+      }
+      const input = document.createElement("input");
+      input.value = url;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand("copy");
+      document.body.removeChild(input);
+      setShareStatus("Ссылка скопирована");
+    } catch {
+      setShareStatus("Не удалось поделиться");
+    }
+  };
+
+  const handleCopyUsername = async () => {
+    if (!profile?.username) {
+      return;
+    }
+    const handle = `@${profile.username}`;
+    try {
+      if (navigator?.clipboard) {
+        await navigator.clipboard.writeText(handle);
+        setShareStatus("Username скопирован");
+        return;
+      }
+      const input = document.createElement("input");
+      input.value = handle;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand("copy");
+      document.body.removeChild(input);
+      setShareStatus("Username скопирован");
+    } catch {
+      setShareStatus("Не удалось скопировать");
+    }
+  };
+
+  const handleReportUser = async () => {
+    if (!profile?.username) {
+      return;
+    }
+    if (isUnauthed || isLoadingSession) {
+      setShareStatus("Войдите, чтобы пожаловаться");
+      return;
+    }
+    const reason = window
+      .prompt("Причина жалобы (1-200 символов)")?.trim();
+    if (!reason) {
+      return;
+    }
+    setShareStatus("Отправляем...");
+    try {
+      const response = await fetch("/api/feedback", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: `REPORT_USER @${profile.username}: ${reason}`,
+          currentPath: `/u/${profile.username}`,
+        }),
+      });
+      if (!response.ok) {
+        setShareStatus("Не удалось отправить");
+        return;
+      }
+      setShareStatus("Жалоба отправлена");
+    } catch {
+      setShareStatus("Не удалось отправить");
+    }
+  };
+
+  const handlePinToggle = async (post: PostWithMeta) => {
+    if (!profile?.viewer?.isMe || typeof post.id !== "number") {
+      return;
+    }
+    const prevPinned = profile.pinnedPostId ?? null;
+    const prevPinnedPost = pinnedPost;
+    const nextPinned = prevPinned === post.id ? null : post.id;
+
+    setProfile({
+      ...profile,
+      pinnedPostId: nextPinned,
+    });
+    setPinnedPost(nextPinned ? post : null);
+    setPinSaving(true);
+
+    try {
+      const response = await fetch("/api/me/pin", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId: nextPinned }),
+      });
+      if (!response.ok) {
+        throw new Error("failed");
+      }
+    } catch {
+      setProfile({
+        ...profile,
+        pinnedPostId: prevPinned,
+      });
+      setPinnedPost(prevPinned ? prevPinnedPost : null);
+      setShareStatus("Не удалось закрепить");
+    } finally {
+      setPinSaving(false);
+    }
+  };
 
   const handleFollowToggle = async () => {
     if (!profile || profile.viewer?.isMe || isUnauthed || isLoadingSession) {
@@ -196,6 +524,9 @@ export default function ProfileClient() {
     const prevViewer = profile.viewer;
     const prevStats = profile.stats;
     const nextFollowing = !prevViewer?.isFollowing;
+    if (navigator?.vibrate && nextFollowing) {
+      navigator.vibrate(10);
+    }
 
     setProfile({
       ...profile,
@@ -469,20 +800,11 @@ export default function ProfileClient() {
     if (!profile) {
       return null;
     }
-    if (isUnauthed) {
-      return "Войти, чтобы подписаться";
-    }
     if (profile.viewer?.isMe) {
       return null;
     }
-    if (profile.viewer?.isFriend) {
-      return "Друзья";
-    }
-    if (profile.viewer?.isFollowing) {
-      return "Вы подписаны";
-    }
-    return "Подписаться";
-  }, [isUnauthed, profile]);
+    return profile.viewer?.isFollowing ? "Отписаться" : "Подписаться";
+  }, [profile]);
 
   const skeleton = (
     <div className="space-y-6">
@@ -504,7 +826,7 @@ export default function ProfileClient() {
   );
 
   return (
-    <div className="min-h-screen bg-[#f7f4ef] text-slate-900">
+    <div className="min-h-screen bg-white text-slate-900">
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-12">
         {loading ? (
           skeleton
@@ -534,9 +856,14 @@ export default function ProfileClient() {
                     <h1 className="text-2xl font-semibold text-slate-900">
                       {profile.displayName ?? `@${profile.username}`}
                     </h1>
-                    <p className="text-sm text-slate-500">
+                    <button
+                      type="button"
+                      onClick={handleCopyUsername}
+                      className="text-left text-sm text-slate-500 transition hover:text-slate-900"
+                      aria-label="Скопировать username"
+                    >
                       @{profile.username}
-                    </p>
+                    </button>
                     {profile.bio ? (
                       <p className="mt-2 text-sm text-slate-600">
                         {profile.bio}
@@ -547,89 +874,244 @@ export default function ProfileClient() {
                     </p>
                   </div>
                 </div>
-                {profile.viewer?.isMe ? null : (
+                {profile.viewer?.isMe ? (
+                  <div className="flex flex-col items-start gap-2 sm:items-end">
+                    <div ref={profileMenuRef} className="relative">
+                      <button
+                        type="button"
+                        onClick={() => setProfileMenuOpen((open) => !open)}
+                        className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 transition hover:border-[#6495ED]/40 hover:text-[#6495ED]"
+                        aria-label="Меню профиля"
+                      >
+                        ⋯
+                      </button>
+                      {profileMenuOpen ? (
+                        <div className="absolute right-0 z-10 mt-2 w-48 rounded-xl border border-slate-200 bg-white p-1 text-xs shadow-lg">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProfileMenuOpen(false);
+                              router.push("/settings/profile");
+                            }}
+                            className="w-full rounded-lg px-3 py-2 text-left text-slate-700 transition hover:bg-slate-50"
+                          >
+                            Редактировать профиль
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProfileMenuOpen(false);
+                              handleShareProfile();
+                            }}
+                            className="w-full rounded-lg px-3 py-2 text-left text-slate-700 transition hover:bg-slate-50"
+                          >
+                            Поделиться
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                    {shareStatus ? (
+                      <p className="text-xs text-slate-400">{shareStatus}</p>
+                    ) : null}
+                  </div>
+                ) : (
                   <div className="flex flex-col gap-2 sm:items-end">
                     {followLabel ? (
                       <button
                         type="button"
                         onClick={handleFollowToggle}
                         disabled={isUnauthed || isLoadingSession || followSaving}
-                        className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+                        className={`bubble-btn-primary rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-60 pressable ${
+                          followPulse ? "animate-pop" : ""
+                        }`}
                       >
                         {followSaving ? "Обновляем..." : followLabel}
                       </button>
                     ) : null}
-                    <button
-                      type="button"
-                      onClick={handleStartDm}
-                      disabled={isUnauthed || isLoadingSession || dmLoading}
-                      className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 disabled:opacity-60"
-                    >
-                      {isUnauthed ? "Войти, чтобы написать" : dmLoading ? "Открываем..." : "Написать"}
-                    </button>
+                    {isUnauthed ? (
+                      <p className="text-xs text-slate-400">
+                        Войдите, чтобы подписаться и писать сообщения.
+                      </p>
+                    ) : null}
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleStartDm}
+                        disabled={isUnauthed || isLoadingSession || dmLoading}
+                        className="bubble-btn rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-60 pressable"
+                      >
+                        {dmLoading ? "Открываем..." : "Написать"}
+                      </button>
+                      <div ref={profileMenuRef} className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setProfileMenuOpen((open) => !open)}
+                          className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 transition hover:border-[#6495ED]/40 hover:text-[#6495ED]"
+                          aria-label="Меню профиля"
+                        >
+                          ⋯
+                        </button>
+                        {profileMenuOpen ? (
+                          <div className="absolute right-0 z-10 mt-2 w-48 rounded-xl border border-slate-200 bg-white p-1 text-xs shadow-lg">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setProfileMenuOpen(false);
+                                handleShareProfile();
+                              }}
+                              className="w-full rounded-lg px-3 py-2 text-left text-slate-700 transition hover:bg-slate-50"
+                            >
+                              Поделиться
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setProfileMenuOpen(false);
+                                handleReportUser();
+                              }}
+                              className="w-full rounded-lg px-3 py-2 text-left text-rose-600 transition hover:bg-rose-50"
+                            >
+                              Пожаловаться
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
                     {dmError ? (
                       <p className="text-xs text-rose-500">{dmError}</p>
+                    ) : null}
+                    {shareStatus ? (
+                      <p className="text-xs text-slate-400">{shareStatus}</p>
                     ) : null}
                   </div>
                 )}
               </div>
 
               <div className="mt-6 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
-                <div>
+                <button
+                  type="button"
+                  onClick={() => setTab("posts")}
+                  className="text-left hover:text-slate-900"
+                >
                   <span className="font-semibold text-slate-900">
                     {profile.stats.postsCount}
                   </span>{" "}
                   постов
-                </div>
-                <div>
-                  <Link
-                    href="#"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      openOverlay("followers");
-                    }}
-                    className="hover:text-slate-900"
-                  >
-                    <span className="font-semibold text-slate-900">
-                      {profile.stats.followersCount}
-                    </span>{" "}
-                    подписчиков
-                  </Link>
-                </div>
-                <div>
-                  <Link
-                    href="#"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      openOverlay("following");
-                    }}
-                    className="hover:text-slate-900"
-                  >
-                    <span className="font-semibold text-slate-900">
-                      {profile.stats.followingCount}
-                    </span>{" "}
-                    подписок
-                  </Link>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openOverlay("followers")}
+                  className="text-left hover:text-slate-900"
+                >
+                  <span className="font-semibold text-slate-900">
+                    {profile.stats.followersCount}
+                  </span>{" "}
+                  подписчиков
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openOverlay("following")}
+                  className="text-left hover:text-slate-900"
+                >
+                  <span className="font-semibold text-slate-900">
+                    {profile.stats.followingCount}
+                  </span>{" "}
+                  подписок
+                </button>
+              </div>
+
+              <div className="mt-6 border-t border-slate-200 pt-4">
+                <div className="flex flex-wrap gap-2">
+                  {PROFILE_TABS.map((tab) => (
+                    <button
+                      key={tab.key}
+                      type="button"
+                      onClick={() => setTab(tab.key)}
+                      className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
+                        activeTab === tab.key
+                          ? "border-slate-900 bg-slate-900 text-white"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
                 </div>
               </div>
             </section>
 
             <section className="space-y-4">
-              {loadingPosts ? (
-                <p className="text-sm text-slate-500">Загрузка постов...</p>
-              ) : posts.length === 0 ? (
+              {tabState[activeTab].loading ? (
+                <p className="text-sm text-slate-500">Загрузка...</p>
+              ) : tabState[activeTab].error ? (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                  {tabState[activeTab].error}
+                </div>
+              ) : tabState[activeTab].items.length === 0 &&
+                !(activeTab === "posts" && pinnedPost) ? (
                 <p className="text-sm text-slate-500">
-                  @{profile.username} пока ничего не написал
+                  {activeTab === "posts"
+                    ? `@${profile.username} пока ничего не написал`
+                    : `@${profile.username} пока не отвечал`}
                 </p>
               ) : (
-                posts.map((post) => (
-                  <PostCard
-                    key={post.id}
-                    post={post}
-                    onDeleted={handleDeletedPost}
-                    onDeleteError={handleDeleteError}
-                  />
-                ))
+                <>
+                  {activeTab === "posts" && pinnedPost ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
+                        <span>Закреплено</span>
+                        <span className="h-1 w-1 rounded-full bg-slate-300" />
+                        <span>Пост автора</span>
+                      </div>
+                      <PostCard
+                        post={pinnedPost}
+                        onDeleted={handleDeletedPost}
+                        onDeleteError={handleDeleteError}
+                        highlight
+                        menuItems={
+                          profile.viewer?.isMe
+                            ? [
+                                {
+                                  key: "pin",
+                                  label: "Открепить",
+                                  onClick: () => handlePinToggle(pinnedPost),
+                                  disabled: pinSaving,
+                                },
+                              ]
+                            : undefined
+                        }
+                      />
+                    </div>
+                  ) : null}
+                  {(activeTab === "posts" && profile.pinnedPostId
+                    ? tabState[activeTab].items.filter(
+                        (post) => post.id !== profile.pinnedPostId
+                      )
+                    : tabState[activeTab].items
+                  ).map((post) => (
+                    <PostCard
+                      key={post.id}
+                      post={post}
+                      onDeleted={handleDeletedPost}
+                      onDeleteError={handleDeleteError}
+                      menuItems={
+                        activeTab === "posts" && profile.viewer?.isMe
+                          ? [
+                              {
+                                key: "pin",
+                                label:
+                                  profile.pinnedPostId === post.id
+                                    ? "Открепить"
+                                    : "Закрепить",
+                                onClick: () => handlePinToggle(post),
+                                disabled: pinSaving,
+                              },
+                            ]
+                          : undefined
+                      }
+                    />
+                  ))}
+                </>
               )}
             </section>
           </>
@@ -714,7 +1196,7 @@ export default function ProfileClient() {
                           type="button"
                           onClick={() => handleOverlayToggle(item)}
                           disabled={isUnauthed || !item.username}
-                          className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 disabled:opacity-60"
+                          className="bubble-btn rounded-full px-3 py-1.5 text-xs font-semibold disabled:opacity-60 pressable"
                         >
                           {label}
                         </button>

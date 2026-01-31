@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { canModerate, getOptionalUser, requireUserApi } from "@/lib/auth";
+import { canAccessCommunity } from "@/lib/community-access";
 import { buildCursor, parseCursor } from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
 import { PaginationSchema } from "@/lib/validators";
@@ -63,6 +64,39 @@ export async function GET(
 
     if (!post) {
       return apiError("NOT_FOUND", 404);
+    }
+
+    if (post.communityId) {
+      const community = await prisma.community.findUnique({
+        where: { id: post.communityId },
+        select: {
+          id: true,
+          type: true,
+          isPrivate: true,
+          facultyCode: true,
+          courseYear: true,
+        },
+      });
+
+      if (!community) {
+        return apiError("NOT_FOUND", 404);
+      }
+
+      const hasAccess = await canAccessCommunity(
+        community,
+        viewer
+          ? {
+              id: viewer.id,
+              role: viewer.role,
+              faculty: viewer.faculty ?? null,
+              course: viewer.course ?? null,
+            }
+          : null
+      );
+
+      if (!hasAccess) {
+        return apiError("FORBIDDEN", 403, { message: "PRIVATE_COMMUNITY" });
+      }
     }
 
     if (post.deletedAt && !viewerCanModerate && viewerId !== post.authorId) {

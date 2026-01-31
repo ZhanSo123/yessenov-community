@@ -132,7 +132,7 @@ export default function FollowListClient({ username, mode }: FollowListClientPro
   };
 
   return (
-    <div className="min-h-screen bg-[#f7f4ef] text-slate-900">
+    <div className="min-h-screen bg-white text-slate-900">
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-12">
         <header>
           <h1 className="text-3xl font-semibold">
@@ -198,7 +198,7 @@ export default function FollowListClient({ username, mode }: FollowListClientPro
                       type="button"
                       onClick={() => handleToggle(item)}
                       disabled={isUnauthed || !canToggle}
-                      className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 disabled:opacity-60"
+                      className="bubble-btn rounded-full px-3 py-1.5 text-xs font-semibold disabled:opacity-60 pressable"
                     >
                       {label}
                     </button>

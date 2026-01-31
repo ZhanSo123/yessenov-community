@@ -53,6 +53,19 @@ describe("API auth quality gate", () => {
     expect(payload.data).toEqual([]);
   });
 
+  it("GET /api/communities?scope=recommended without session returns []", async () => {
+    setAuthOverride(async () => null);
+
+    const { GET } = await import("../src/app/api/communities/route");
+    const response = await GET(
+      new NextRequest("http://localhost/api/communities?scope=recommended")
+    );
+
+    expect(response.status).toBe(200);
+    const payload = await response.json();
+    expect(payload.data).toEqual([]);
+  });
+
   it("GET /api/feed?mode=following without session returns 401", async () => {
     setAuthOverride(async () => null);
 

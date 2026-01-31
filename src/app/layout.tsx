@@ -1,8 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import type { Metadata } from "next";
-import Link from "next/link";
 import Providers from "@/app/providers";
+import BottomNav from "@/components/BottomNav";
 import FeedbackButton from "@/components/FeedbackButton";
 import "./globals.css";
 
@@ -18,46 +18,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">
-        <header className="border-b border-slate-200 bg-white/80 backdrop-blur">
-          <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4">
-            <Link href="/" className="text-sm font-semibold text-slate-900">
-              Yessenov Community
-            </Link>
-            <nav className="flex items-center gap-4 text-sm text-slate-600">
-              <Link href="/" className="transition hover:text-slate-900">
-                For you
-              </Link>
-              <Link
-                href="/?tab=following"
-                className="transition hover:text-slate-900"
-              >
-                Following
-              </Link>
-              <Link href="/search" className="transition hover:text-slate-900">
-                Поиск
-              </Link>
-              <Link
-                href="/notifications"
-                className="transition hover:text-slate-900"
-              >
-                Уведомления
-              </Link>
-              <Link href="/messages" className="transition hover:text-slate-900">
-                Сообщения
-              </Link>
-              <Link
-                href="/settings/profile"
-                className="transition hover:text-slate-900"
-              >
-                Profile
-              </Link>
-            </nav>
-          </div>
-        </header>
+      <body className="antialiased bg-white text-slate-900">
         <Providers>
-          {children}
+          <div className="min-h-screen pb-24">{children}</div>
           <FeedbackButton />
+          <BottomNav />
         </Providers>
       </body>
     </html>

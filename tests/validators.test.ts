@@ -4,6 +4,7 @@ import {
   FollowToggleSchema,
   PaginationSchema,
   PostCreateSchema,
+  validateProfile,
 } from "../src/lib/validators";
 
 describe("validators", () => {
@@ -22,6 +23,36 @@ describe("validators", () => {
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.limit).toBe(20);
+    }
+  });
+
+  it("validateProfile parses interests from comma string", () => {
+    const result = validateProfile({
+      username: "user_1",
+      interests: "AI, спорт,   дизайн",
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.interests).toEqual(["AI", "спорт", "дизайн"]);
+    }
+  });
+
+  it("validateProfile rejects too many interests", () => {
+    const result = validateProfile({
+      username: "user_1",
+      interests: ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"],
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("INVALID_INTERESTS");
+    }
+  });
+
+  it("validateProfile rejects invalid course", () => {
+    const result = validateProfile({ username: "user_1", course: 10 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("INVALID_COURSE");
     }
   });
 });

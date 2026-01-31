@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { canModerate, getOptionalUser } from "@/lib/auth";
+import { getAccessibleCommunityIds } from "@/lib/community-access";
 import { buildCursor, parseCursor } from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
 import { PaginationSchema } from "@/lib/validators";
@@ -50,6 +51,19 @@ export async function GET(
     const viewer = await getOptionalUser();
     const viewerId = viewer?.id ?? null;
     const viewerCanModerate = viewer ? canModerate(viewer) : false;
+    const accessibleCommunityIds =
+      viewerCanModerate || viewerId === user.id
+        ? null
+        : await getAccessibleCommunityIds(
+            viewer
+              ? {
+                  id: viewer.id,
+                  role: viewer.role,
+                  faculty: viewer.faculty ?? null,
+                  course: viewer.course ?? null,
+                }
+              : null
+          );
 
     const cursorFilter = cursor
       ? {
@@ -69,12 +83,26 @@ export async function GET(
       visibilityFilter.author = { shadowBannedAt: null };
     }
 
+    const accessFilter =
+      accessibleCommunityIds !== null
+        ? {
+            OR:
+              accessibleCommunityIds.length > 0
+                ? [
+                    { communityId: null },
+                    { communityId: { in: accessibleCommunityIds } },
+                  ]
+                : [{ communityId: null }],
+          }
+        : {};
+
     const [totalCount, posts] = await Promise.all([
       prisma.post.count({
         where: {
           authorId: user.id,
           replyToId: null,
           ...visibilityFilter,
+          ...accessFilter,
         },
       }),
       prisma.post.findMany({
@@ -82,6 +110,7 @@ export async function GET(
           authorId: user.id,
           replyToId: null,
           ...visibilityFilter,
+          ...accessFilter,
           ...cursorFilter,
         },
         orderBy: [

@@ -133,11 +133,7 @@ export default function AdminAppealsPage() {
             key={item}
             type="button"
             onClick={() => setStatus(item)}
-            className={`rounded-full border px-4 py-1 text-xs font-semibold ${
-              status === item
-                ? "border-slate-900 bg-slate-900 text-white"
-                : "border-slate-200 bg-white text-slate-600"
-            }`}
+            className={`${status === item ? "bubble-btn-primary" : "bubble-btn"} rounded-full px-4 py-1 text-xs font-semibold pressable`}
           >
             {item}
           </button>
@@ -171,7 +167,7 @@ export default function AdminAppealsPage() {
         <button
           type="button"
           onClick={() => loadAppeals({ reset: true })}
-          className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs text-slate-600"
+          className="bubble-btn rounded-full px-4 py-2 text-xs font-semibold pressable"
         >
           Refresh
         </button>
@@ -221,14 +217,14 @@ export default function AdminAppealsPage() {
                 <button
                   type="button"
                   onClick={() => resolveAppeal(appeal.id, "APPROVED")}
-                  className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white"
+                  className="bubble-btn-primary rounded-full px-3 py-1 text-xs font-semibold pressable"
                 >
                   Approve
                 </button>
                 <button
                   type="button"
                   onClick={() => resolveAppeal(appeal.id, "DENIED")}
-                  className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600"
+                  className="bubble-btn rounded-full px-3 py-1 text-xs font-semibold pressable"
                 >
                   Deny
                 </button>
@@ -243,7 +239,7 @@ export default function AdminAppealsPage() {
           type="button"
           onClick={() => loadAppeals({ cursor: nextCursor })}
           disabled={!canLoadMore}
-          className="rounded-full border border-slate-200 bg-white/80 px-5 py-2 text-sm text-slate-600 transition hover:text-slate-900 disabled:opacity-60"
+          className="bubble-btn rounded-full px-5 py-2 text-sm font-semibold disabled:opacity-60 pressable"
         >
           {loading ? "Загружаем..." : "Load more"}
         </button>

@@ -137,13 +137,13 @@ export default function AdminReportsPage() {
       <div className="flex flex-wrap gap-2">
         <a
           href="/api/admin/export/reports?status=OPEN"
-          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs text-slate-600"
+          className="bubble-btn rounded-xl px-4 py-2 text-xs font-semibold pressable"
         >
           Export OPEN CSV
         </a>
         <a
           href="/api/admin/export/reports"
-          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs text-slate-600"
+          className="bubble-btn rounded-xl px-4 py-2 text-xs font-semibold pressable"
         >
           Export ALL CSV
         </a>
@@ -155,10 +155,8 @@ export default function AdminReportsPage() {
             key={item}
             type="button"
             onClick={() => setStatus(item)}
-            className={`rounded-full border px-4 py-1 text-xs font-semibold ${
-              status === item
-                ? "border-slate-900 bg-slate-900 text-white"
-                : "border-slate-200 bg-white text-slate-600"
+            className={`rounded-full px-4 py-1 text-xs font-semibold pressable ${
+              status === item ? "bubble-btn-primary" : "bubble-btn"
             }`}
           >
             {item}
@@ -204,7 +202,7 @@ export default function AdminReportsPage() {
         <button
           type="button"
           onClick={() => loadReports({ reset: true })}
-          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+          className="bubble-btn-primary rounded-xl px-4 py-2 text-sm font-semibold pressable"
         >
           Применить
         </button>
@@ -258,14 +256,14 @@ export default function AdminReportsPage() {
                 <button
                   type="button"
                   onClick={() => handleResolve(report.id, "RESOLVED")}
-                  className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white"
+                  className="bubble-btn-primary rounded-full px-3 py-1 text-xs font-semibold pressable"
                 >
                   Resolve
                 </button>
                 <button
                   type="button"
                   onClick={() => handleResolve(report.id, "REJECTED")}
-                  className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 hover:text-slate-900"
+                  className="bubble-btn rounded-full px-3 py-1 text-xs font-semibold pressable"
                 >
                   Reject
                 </button>
@@ -280,7 +278,7 @@ export default function AdminReportsPage() {
           type="button"
           onClick={() => loadReports({ cursor: nextCursor })}
           disabled={!canLoadMore}
-          className="rounded-full border border-slate-200 bg-white/80 px-5 py-2 text-sm text-slate-600 transition hover:text-slate-900 disabled:opacity-60"
+          className="bubble-btn rounded-full px-5 py-2 text-sm font-semibold disabled:opacity-60 pressable"
         >
           {loading ? "Загружаем..." : "Load more"}
         </button>

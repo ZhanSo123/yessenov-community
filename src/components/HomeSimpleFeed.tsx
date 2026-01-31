@@ -130,7 +130,7 @@ export default function HomeSimpleFeed() {
     author.name ?? author.email ?? "User";
 
   return (
-    <div className="relative min-h-screen bg-[#f7f4ef] text-slate-900">
+    <div className="relative min-h-screen bg-white text-slate-900">
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 pb-16 pt-10">
         <header className="flex flex-col gap-2">
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
@@ -154,7 +154,7 @@ export default function HomeSimpleFeed() {
             <button
               type="button"
               onClick={() => signIn("google")}
-              className="mt-4 inline-flex items-center rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+              className="bubble-btn-primary mt-4 inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold pressable"
             >
               Google Sign In
             </button>
@@ -182,7 +182,7 @@ export default function HomeSimpleFeed() {
               <button
                 type="submit"
                 disabled={posting}
-                className="mt-3 inline-flex items-center rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+                className="bubble-btn-primary mt-3 inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-60 pressable"
               >
                 {posting ? "Publishing..." : "Post"}
               </button>

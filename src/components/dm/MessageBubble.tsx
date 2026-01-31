@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+
 type MessageSender = {
   id: string;
   username: string | null;
@@ -14,6 +17,19 @@ type MessageBubbleProps = {
   isMine: boolean;
   showAvatar?: boolean;
 };
+
+type PostPreview = {
+  id: number;
+  content: string;
+  createdAt: string;
+  author: {
+    username: string | null;
+    displayName: string | null;
+    image: string | null;
+  };
+};
+
+const postLinkRegex = /(?:https?:\\/\\/[^\\s]+)?\\/p\\/(\\d+)/i;
 
 const formatRelativeTime = (value: string) => {
   const createdAt = new Date(value);
@@ -49,6 +65,58 @@ export default function MessageBubble({
   const displayName = sender.displayName || sender.username || "User";
   const timeLabel = formatRelativeTime(createdAt);
   const avatarInitial = (displayName || "U").slice(0, 1).toUpperCase();
+  const [preview, setPreview] = useState<PostPreview | null>(null);
+
+  const postId = useMemo(() => {
+    const match = content.match(postLinkRegex);
+    return match ? Number(match[1]) : null;
+  }, [content]);
+
+  const cleanedContent = useMemo(() => {
+    if (!postId) {
+      return content.trim();
+    }
+    return content
+      .replace(postLinkRegex, "")
+      .replace(/Пост:\s*/i, "")
+      .trim();
+  }, [content, postId]);
+
+  useEffect(() => {
+    let active = true;
+    if (!postId) {
+      setPreview(null);
+      return () => {
+        active = false;
+      };
+    }
+
+    const loadPreview = async () => {
+      try {
+        const response = await fetch(`/api/posts/${postId}`, {
+          credentials: "include",
+        });
+        if (!response.ok) {
+          return;
+        }
+        const payload = (await response.json()) as {
+          data?: { post?: PostPreview };
+        };
+        if (active) {
+          setPreview(payload.data?.post ?? null);
+        }
+      } catch {
+        if (active) {
+          setPreview(null);
+        }
+      }
+    };
+
+    loadPreview();
+    return () => {
+      active = false;
+    };
+  }, [postId]);
 
   return (
     <div className={`flex items-end gap-2 ${isMine ? "justify-end" : ""}`}>
@@ -75,7 +143,37 @@ export default function MessageBubble({
             : "border border-slate-200 bg-white text-slate-900"
         }`}
       >
-        <p className="whitespace-pre-wrap leading-relaxed">{content}</p>
+        {preview && postId ? (
+          <Link
+            href={`/p/${postId}`}
+            className={`block rounded-xl border px-3 py-2 text-sm transition hover:border-[#6495ED]/40 ${
+              isMine
+                ? "border-white/20 bg-white/10 text-white"
+                : "border-slate-200 bg-white text-slate-900"
+            }`}
+          >
+            <p className="text-xs font-semibold">
+              {preview.author.displayName ||
+                preview.author.username ||
+                "User"}
+            </p>
+            {preview.author.username ? (
+              <p className="text-[11px] text-slate-400">
+                @{preview.author.username}
+              </p>
+            ) : null}
+            <p className="mt-2 text-sm">
+              {preview.content.length > 140
+                ? `${preview.content.slice(0, 140)}…`
+                : preview.content}
+            </p>
+          </Link>
+        ) : null}
+        {cleanedContent ? (
+          <p className="mt-2 whitespace-pre-wrap leading-relaxed">
+            {cleanedContent}
+          </p>
+        ) : null}
         <p
           className={`mt-2 text-[11px] ${
             isMine ? "text-slate-200" : "text-slate-400"

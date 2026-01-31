@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 
+import DevLoginButton from "@/components/DevLoginButton";
 export default function AuthLoginPage() {
   return (
-    <div className="min-h-screen bg-[#f7f4ef] text-slate-900">
+    <div className="min-h-screen bg-white text-slate-900">
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-16">
         <header className="space-y-2">
           <h1 className="text-3xl font-semibold">Вход</h1>
@@ -18,10 +19,13 @@ export default function AuthLoginPage() {
           <button
             type="button"
             onClick={() => signIn("google", { callbackUrl: "/" })}
-            className="w-full rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300"
+            className="bubble-btn w-full rounded-full px-5 py-3 text-sm font-semibold pressable"
           >
             Войти через Google
           </button>
+          <div className="mt-3">
+            <DevLoginButton />
+          </div>
           <p className="mt-4 text-xs text-slate-500">
             Нет аккаунта?{" "}
             <Link href="/welcome" className="underline">

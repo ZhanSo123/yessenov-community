@@ -16,6 +16,10 @@ export default async function ProfileSettingsPage() {
       username: true,
       displayName: true,
       bio: true,
+      image: true,
+      faculty: true,
+      course: true,
+      interests: true,
       hasOnboarded: true,
     },
   });
@@ -33,6 +37,10 @@ export default async function ProfileSettingsPage() {
       initialUsername={user.username}
       initialDisplayName={user.displayName ?? ""}
       initialBio={user.bio ?? ""}
+      initialImage={user.image ?? ""}
+      initialFaculty={user.faculty ?? ""}
+      initialCourse={user.course ? String(user.course) : ""}
+      initialInterests={(user.interests ?? []).join(", ")}
     />
   );
 }

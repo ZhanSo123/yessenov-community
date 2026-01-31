@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 export default function CreatePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const communitySlug = searchParams.get("c")?.trim() || "";
   const { data: session, status } = useSession();
   const user = session?.user ?? null;
   const loading = status === "loading";
@@ -36,7 +38,10 @@ export default function CreatePage() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({
+          content,
+          communitySlug: communitySlug || undefined,
+        }),
       });
 
       if (response.status === 401) {
@@ -46,7 +51,7 @@ export default function CreatePage() {
 
       if (response.status === 403) {
         const payload = (await response.json().catch(() => null)) as
-          | { error?: string; bannedUntil?: string; banReason?: string }
+          | { error?: string; message?: string; bannedUntil?: string; banReason?: string }
           | null;
         if (payload?.error === "BANNED") {
           const until = payload.bannedUntil
@@ -55,7 +60,11 @@ export default function CreatePage() {
           const reason = payload.banReason ? ` Причина: ${payload.banReason}` : "";
           setError(`Вы заблокированы до ${until}.${reason}`);
         } else {
-          setError("Доступ запрещён.");
+          setError(
+            payload?.message === "PRIVATE_COMMUNITY"
+              ? "Это закрытое сообщество."
+              : "Доступ запрещён."
+          );
         }
         return;
       }
@@ -78,13 +87,18 @@ export default function CreatePage() {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#f7f4ef] text-slate-900">
+    <div className="relative min-h-screen bg-white text-slate-900">
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 pb-16 pt-10">
         <header>
           <h1 className="text-3xl font-semibold sm:text-4xl">Создать пост</h1>
           <p className="mt-2 text-sm text-slate-600">
             Быстрый черновик для нового треда.
           </p>
+          {communitySlug ? (
+            <p className="mt-2 text-xs text-slate-500">
+              Сообщество: {communitySlug}
+            </p>
+          ) : null}
         </header>
 
         {loadingError ? (
@@ -100,7 +114,7 @@ export default function CreatePage() {
             <p>Чтобы создать пост, нужно войти.</p>
             <Link
               href="/"
-              className="mt-3 inline-flex items-center rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+              className="bubble-btn-primary mt-3 inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold pressable"
             >
               Войти
             </Link>
@@ -125,7 +139,7 @@ export default function CreatePage() {
           <button
             type="submit"
             disabled={!user || submitting}
-            className="mt-4 rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+            className="bubble-btn-primary mt-4 rounded-full px-5 py-2 text-sm font-semibold disabled:opacity-60 pressable"
           >
             {submitting ? "Публикуем..." : "Post"}
           </button>

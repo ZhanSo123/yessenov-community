@@ -150,7 +150,7 @@ export default function ReplyComposer({
           type="button"
           onClick={handleSubmit}
           disabled={isLoading || isUnauthed || sending}
-          className="rounded-full bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+          className="bubble-btn-primary rounded-full px-3 py-1.5 text-xs font-semibold disabled:opacity-60 pressable"
         >
           {sending ? "Отправляем..." : "Ответить"}
         </button>

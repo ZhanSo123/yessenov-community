@@ -9,11 +9,14 @@ type Community = {
   slug: string;
   title: string;
   description: string;
+  type: "OPEN" | "FACULTY" | "COURSE" | "TEACHERS";
+  facultyCode?: string | null;
+  courseYear?: number | null;
+  isPrivate?: boolean;
 };
 
 type Post = {
   id: number;
-  title: string;
   content: string;
   createdAt: string;
   community: {
@@ -21,7 +24,7 @@ type Post = {
     title: string;
   };
   author: {
-    username: string;
+    username: string | null;
   };
 };
 
@@ -79,6 +82,9 @@ export default function CommunityPage() {
           }),
         ]);
 
+        if (postsRes.status === 403) {
+          throw new Error("Это закрытое сообщество");
+        }
         if (!communityRes.ok || !postsRes.ok) {
           throw new Error("Не удалось загрузить данные сообщества");
         }
@@ -119,7 +125,7 @@ export default function CommunityPage() {
   }, [slug]);
 
   return (
-    <div className="relative min-h-screen bg-[#f7f4ef] text-slate-900">
+    <div className="relative min-h-screen bg-white text-slate-900">
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 pb-16 pt-12">
         <header className="flex flex-col gap-3">
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
@@ -128,17 +134,53 @@ export default function CommunityPage() {
           <h1 className="text-3xl font-semibold sm:text-4xl">
             {community?.title ?? "Сообщество"}
           </h1>
+          {community ? (
+            <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+              <span>
+                {community.type === "OPEN"
+                  ? "Открытое"
+                  : community.type === "FACULTY"
+                    ? "Факультет"
+                    : community.type === "COURSE"
+                      ? "Курс"
+                      : "Преподаватели"}
+                {community.facultyCode ? ` · ${community.facultyCode}` : ""}
+                {community.courseYear ? ` · ${community.courseYear} курс` : ""}
+              </span>
+              {community.type !== "OPEN" || community.isPrivate ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-[#6495ED]/30 bg-white px-2 py-1 text-[10px] uppercase text-[#6495ED]">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    className="h-3.5 w-3.5"
+                    aria-hidden="true"
+                  >
+                    <rect x="6" y="11" width="12" height="9" rx="2" />
+                    <path
+                      d="M8.5 11V8.5a3.5 3.5 0 0 1 7 0V11"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  Закрытое
+                </span>
+              ) : null}
+            </div>
+          ) : null}
           <p className="max-w-2xl text-sm text-slate-600">
             {community?.description ?? "Описание сообщества пока не добавлено."}
           </p>
-          <div>
-            <Link
-              href={`/create?c=${encodeURIComponent(slug)}`}
-              className="inline-flex items-center rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-            >
-              Создать пост
-            </Link>
-          </div>
+          {!error ? (
+            <div>
+              <Link
+                href={`/create?c=${encodeURIComponent(slug)}`}
+                className="bubble-btn-primary inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold pressable"
+              >
+                Создать пост
+              </Link>
+            </div>
+          ) : null}
         </header>
 
         {error ? (
@@ -162,8 +204,8 @@ export default function CommunityPage() {
               className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-lg font-semibold text-slate-900">
-                  {post.title}
+                <h2 className="text-sm font-semibold text-slate-900">
+                  {post.author.username ? `@${post.author.username}` : "Автор"}
                 </h2>
                 <time className="text-xs text-slate-400">
                   {relativeTime(post.createdAt)}

@@ -6,44 +6,83 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-[#f7f4ef] text-slate-900">
+    <div className="min-h-screen bg-white text-slate-900">
       <header className="border-b border-slate-200 bg-white/80">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-3 px-6 py-4 text-sm font-semibold text-slate-700">
           <Link href="/" className="text-slate-900">
             Threads
           </Link>
-          <Link href="/admin" className="hover:text-slate-900">
+          <Link
+            href="/admin"
+            className="bubble-btn rounded-full px-3 py-1 text-xs font-semibold pressable"
+          >
             Dashboard
           </Link>
-          <Link href="/admin/posts" className="hover:text-slate-900">
+          <Link
+            href="/admin/posts"
+            className="bubble-btn rounded-full px-3 py-1 text-xs font-semibold pressable"
+          >
             Posts
           </Link>
-          <Link href="/admin/queue" className="hover:text-slate-900">
+          <Link
+            href="/admin/queue"
+            className="bubble-btn rounded-full px-3 py-1 text-xs font-semibold pressable"
+          >
             Queue
           </Link>
-          <Link href="/admin/reports" className="hover:text-slate-900">
+          <Link
+            href="/admin/reports"
+            className="bubble-btn rounded-full px-3 py-1 text-xs font-semibold pressable"
+          >
             Reports
           </Link>
-          <Link href="/admin/appeals" className="hover:text-slate-900">
+          <Link
+            href="/admin/appeals"
+            className="bubble-btn rounded-full px-3 py-1 text-xs font-semibold pressable"
+          >
             Appeals
           </Link>
-          <Link href="/admin/users" className="hover:text-slate-900">
+          <Link
+            href="/admin/users"
+            className="bubble-btn rounded-full px-3 py-1 text-xs font-semibold pressable"
+          >
             Users
           </Link>
-          <Link href="/admin/communities" className="hover:text-slate-900">
+          <Link
+            href="/admin/communities"
+            className="bubble-btn rounded-full px-3 py-1 text-xs font-semibold pressable"
+          >
             Communities
           </Link>
-          <Link href="/admin/alpha" className="hover:text-slate-900">
+          <Link
+            href="/admin/alpha"
+            className="bubble-btn rounded-full px-3 py-1 text-xs font-semibold pressable"
+          >
             Alpha
           </Link>
-          <Link href="/admin/metrics" className="hover:text-slate-900">
+          <Link
+            href="/admin/metrics"
+            className="bubble-btn rounded-full px-3 py-1 text-xs font-semibold pressable"
+          >
             Metrics
           </Link>
-          <Link href="/admin/feedback" className="hover:text-slate-900">
+          <Link
+            href="/admin/feedback"
+            className="bubble-btn rounded-full px-3 py-1 text-xs font-semibold pressable"
+          >
             Feedback
           </Link>
-          <Link href="/admin/audit" className="hover:text-slate-900">
+          <Link
+            href="/admin/audit"
+            className="bubble-btn rounded-full px-3 py-1 text-xs font-semibold pressable"
+          >
             Audit
+          </Link>
+          <Link
+            href="/admin/errors"
+            className="bubble-btn rounded-full px-3 py-1 text-xs font-semibold pressable"
+          >
+            Errors
           </Link>
         </div>
       </header>

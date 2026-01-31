@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 
 type Moderator = {
   id: string;
-  role: "MOD" | "OWNER";
+  role: "MEMBER" | "MOD" | "OWNER";
   user: {
     id: string;
     email: string;
@@ -28,7 +28,7 @@ export default function CommunityModsPage() {
     null
   );
   const [identifier, setIdentifier] = useState("");
-  const [role, setRole] = useState<"MOD" | "OWNER">("MOD");
+  const [role, setRole] = useState<"MEMBER" | "MOD" | "OWNER">("MEMBER");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -95,7 +95,7 @@ export default function CommunityModsPage() {
       }
 
       setIdentifier("");
-      setRole("MOD");
+      setRole("MEMBER");
       await loadMods();
     } catch (fetchError) {
       setError(
@@ -140,10 +140,10 @@ export default function CommunityModsPage() {
     <div className="space-y-6">
       <header>
         <h1 className="text-2xl font-semibold">
-          Модераторы {community ? `/${community.slug}` : ""}
+          Участники {community ? `/${community.slug}` : ""}
         </h1>
         <p className="text-sm text-slate-600">
-          Назначайте модераторов на уровне сообщества.
+          Добавляйте участников и назначайте роли.
         </p>
       </header>
 
@@ -163,9 +163,12 @@ export default function CommunityModsPage() {
           />
           <select
             value={role}
-            onChange={(event) => setRole(event.target.value as "MOD" | "OWNER")}
+            onChange={(event) =>
+              setRole(event.target.value as "MEMBER" | "MOD" | "OWNER")
+            }
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
           >
+            <option value="MEMBER">MEMBER</option>
             <option value="MOD">MOD</option>
             <option value="OWNER">OWNER</option>
           </select>
@@ -173,7 +176,7 @@ export default function CommunityModsPage() {
             type="button"
             onClick={handleAdd}
             disabled={loading}
-            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            className="bubble-btn-primary rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60 pressable"
           >
             Добавить
           </button>
@@ -201,7 +204,7 @@ export default function CommunityModsPage() {
               <button
                 type="button"
                 onClick={() => handleRemove(mod.user.id)}
-                className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600"
+                className="bubble-btn rounded-full px-3 py-1 text-xs font-semibold pressable"
               >
                 Remove
               </button>

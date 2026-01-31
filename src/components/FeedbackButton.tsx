@@ -71,7 +71,7 @@ export default function FeedbackButton() {
           setSent(false);
           setMessage("");
         }}
-        className="fixed bottom-5 right-5 z-40 rounded-full border border-slate-200 bg-white/90 px-4 py-2 text-xs font-semibold text-slate-700 shadow-md transition hover:text-slate-900"
+        className="bubble-btn fixed bottom-5 right-5 z-40 rounded-full px-4 py-2 text-xs font-semibold pressable"
       >
         Оставить фидбек
       </button>
@@ -120,7 +120,7 @@ export default function FeedbackButton() {
                 type="button"
                 onClick={handleSubmit}
                 disabled={sending}
-                className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+                className="bubble-btn-primary rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-60 pressable"
               >
                 {sending ? "Отправляем..." : "Отправить"}
               </button>

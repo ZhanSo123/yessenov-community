@@ -28,6 +28,7 @@ export async function GET(
         image: true,
         createdAt: true,
         id: true,
+        pinnedPostId: true,
       },
     });
 
@@ -78,6 +79,7 @@ export async function GET(
         bio: user.bio,
         image: user.image,
         createdAt: user.createdAt,
+        pinnedPostId: user.pinnedPostId,
         stats: {
           postsCount,
           followersCount,

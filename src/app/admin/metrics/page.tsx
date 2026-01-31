@@ -60,11 +60,7 @@ export default function AdminMetricsPage() {
             key={value}
             type="button"
             onClick={() => setRange(value)}
-            className={`rounded-full border px-4 py-1 text-xs font-semibold ${
-              range === value
-                ? "border-slate-900 bg-slate-900 text-white"
-                : "border-slate-200 bg-white text-slate-600"
-            }`}
+            className={`${range === value ? "bubble-btn-primary" : "bubble-btn"} rounded-full px-4 py-1 text-xs font-semibold pressable`}
           >
             {value}
           </button>

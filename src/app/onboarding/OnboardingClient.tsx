@@ -4,6 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 
+import { FACULTY_OPTIONS } from "@/lib/faculty-interests";
+import {
+  INTEREST_SUGGESTIONS,
+  suggestInterestsFromProfile,
+} from "@/lib/interests";
+
 type OnboardingResponse = {
   data?: { username: string; displayName: string | null; bio: string | null };
   error?: string;
@@ -36,11 +42,20 @@ const buildSuggestion = (email?: string | null, name?: string | null) => {
   return base || "user";
 };
 
+const parseInterests = (value: string) =>
+  value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const formatInterests = (items: string[]) => items.join(", ");
+
 export default function OnboardingClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session } = useSession();
   const user = session?.user ?? null;
+  const steps = ["Профиль", "Факультет", "Интересы", "Готово"];
 
   const suggested = useMemo(() => {
     const fromQuery = searchParams.get("u");
@@ -51,17 +66,58 @@ export default function OnboardingClient() {
   }, [searchParams, user?.email, user?.name]);
 
   const [username, setUsername] = useState(suggested);
-  const [displayName, setDisplayName] = useState("");
+  const initialDisplayName = useMemo(
+    () => (typeof user?.name === "string" ? user.name : ""),
+    [user?.name]
+  );
+  const [displayName, setDisplayName] = useState(initialDisplayName);
   const [bio, setBio] = useState("");
+  const [faculty, setFaculty] = useState("");
+  const [course, setCourse] = useState("");
+  const [interests, setInterests] = useState("");
+  const [interestError, setInterestError] = useState("");
+  const [autoSuggested, setAutoSuggested] = useState(false);
+  const [step, setStep] = useState(0);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const canSubmit = isUsernameValid(username);
+  const canProceedProfile = canSubmit;
+  const courseNumber = course ? Number(course) : null;
+  const courseValid =
+    course === "" ||
+    (courseNumber !== null &&
+      Number.isInteger(courseNumber) &&
+      courseNumber >= 1 &&
+      courseNumber <= 6);
+  const canProceedFaculty = courseValid;
+  const canProceedInterests = true;
+  const interestsList = useMemo(() => parseInterests(interests), [interests]);
+
+  useEffect(() => {
+    if (step !== 2 || autoSuggested || interestsList.length > 0) {
+      return;
+    }
+    const suggestions = suggestInterestsFromProfile({
+      faculty: faculty.trim() || null,
+      course: course ? Number(course) : null,
+    });
+    if (suggestions.length > 0) {
+      setInterests(formatInterests(suggestions));
+      setAutoSuggested(true);
+    }
+  }, [step, autoSuggested, interestsList.length, faculty, course]);
 
   useEffect(() => {
     if (!username && suggested) {
       setUsername(suggested);
     }
   }, [suggested, username]);
+
+  useEffect(() => {
+    if (!displayName && initialDisplayName) {
+      setDisplayName(initialDisplayName);
+    }
+  }, [displayName, initialDisplayName]);
 
   const handleSubmit = async () => {
     setError("");
@@ -76,6 +132,9 @@ export default function OnboardingClient() {
           username: normalizeUsername(username),
           displayName: displayName.trim() || undefined,
           bio: bio.trim() || undefined,
+          faculty: faculty.trim() || undefined,
+          course: course ? Number(course) : undefined,
+          interests: interests.trim() || undefined,
         }),
       });
 
@@ -113,14 +172,59 @@ export default function OnboardingClient() {
     }
   };
 
+  const handleNext = () => {
+    setError("");
+    setStep((current) => Math.min(current + 1, steps.length - 1));
+  };
+
+  const handleBack = () => {
+    setError("");
+    setStep((current) => Math.max(current - 1, 0));
+  };
+
+  const toggleInterest = (value: string) => {
+    const normalized = value.toLowerCase();
+    const current = interestsList;
+    const exists = current.some((item) => item.toLowerCase() === normalized);
+    if (exists) {
+      const next = current.filter(
+        (item) => item.toLowerCase() !== normalized
+      );
+      setInterests(formatInterests(next));
+      setInterestError("");
+      return;
+    }
+    if (current.length >= 10) {
+      setInterestError("Максимум 10 интересов.");
+      return;
+    }
+    const next = [...current, value];
+    setInterests(formatInterests(next));
+    setInterestError("");
+  };
+
   return (
-    <div className="min-h-screen bg-[#f7f4ef] text-slate-900">
+    <div className="min-h-screen bg-white text-slate-900">
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-16">
         <header className="space-y-2">
           <h1 className="text-3xl font-semibold">Настройка профиля</h1>
           <p className="text-sm text-slate-600">
-            Остался один шаг, чтобы публиковать посты.
+            4 шага, чтобы попасть в своё сообщество.
           </p>
+          <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+            {steps.map((label, index) => (
+              <span
+                key={label}
+                className={`rounded-full border px-3 py-1 ${
+                  index === step
+                    ? "border-[#6495ED]/40 bg-[#6495ED]/10 text-[#6495ED]"
+                    : "border-slate-200"
+                }`}
+              >
+                {index + 1}. {label}
+              </span>
+            ))}
+          </div>
         </header>
 
         <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm">
@@ -130,45 +234,197 @@ export default function OnboardingClient() {
             </div>
           ) : null}
 
-          <div className="mt-4 space-y-4">
-            <label className="block text-xs font-semibold text-slate-600">
-              Username
-              <input
-                type="text"
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                placeholder="username"
-              />
-            </label>
-            <label className="block text-xs font-semibold text-slate-600">
-              Display name
-              <input
-                type="text"
-                value={displayName}
-                onChange={(event) => setDisplayName(event.target.value)}
-                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                placeholder="Как вас видно в ленте"
-              />
-            </label>
-            <label className="block text-xs font-semibold text-slate-600">
-              Bio
-              <textarea
-                value={bio}
-                onChange={(event) => setBio(event.target.value)}
-                maxLength={160}
-                className="mt-2 min-h-[120px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                placeholder="Пара строк о себе"
-              />
-            </label>
+          {step === 0 ? (
+            <div className="mt-4 space-y-4">
+              <label className="block text-xs font-semibold text-slate-600">
+                Username
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                  placeholder="username"
+                />
+              </label>
+              <label className="block text-xs font-semibold text-slate-600">
+                Display name
+                <input
+                  type="text"
+                  value={displayName}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                  placeholder="Как вас видно в ленте"
+                />
+              </label>
+              <label className="block text-xs font-semibold text-slate-600">
+                Bio
+                <textarea
+                  value={bio}
+                  onChange={(event) => setBio(event.target.value)}
+                  maxLength={160}
+                  className="mt-2 min-h-[120px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                  placeholder="Пара строк о себе"
+                />
+              </label>
+            </div>
+          ) : null}
+
+          {step === 1 ? (
+            <div className="mt-4 space-y-4">
+              <label className="block text-xs font-semibold text-slate-600">
+                Факультет
+                <input
+                  type="text"
+                  value={faculty}
+                  onChange={(event) => setFaculty(event.target.value)}
+                  list="faculty-options"
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                  placeholder="Например: FIT, ENG"
+                />
+              </label>
+              <datalist id="faculty-options">
+                {FACULTY_OPTIONS.map((item) => (
+                  <option key={item.value} value={item.value} label={item.label} />
+                ))}
+              </datalist>
+              <label className="block text-xs font-semibold text-slate-600">
+                Курс
+                <select
+                  value={course}
+                  onChange={(event) => setCourse(event.target.value)}
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="">Не выбран</option>
+                  {[1, 2, 3, 4, 5, 6].map((value) => (
+                    <option key={value} value={value}>
+                      {value} курс
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p className="text-xs text-slate-500">
+                Мы автоматически откроем доступ к закрытым сообществам факультета и
+                курса.
+              </p>
+            </div>
+          ) : null}
+
+          {step === 2 ? (
+            <div className="mt-4 space-y-4">
+              <label className="block text-xs font-semibold text-slate-600">
+                Интересы
+                <input
+                  type="text"
+                  value={interests}
+                  onChange={(event) => {
+                    setInterests(event.target.value);
+                    setInterestError("");
+                  }}
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                  placeholder="AI, спорт, стартапы"
+                />
+                <span className="mt-1 block text-[11px] text-slate-400">
+                  До 10 интересов, через запятую.
+                </span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {INTEREST_SUGGESTIONS.map((item) => {
+                  const active = interestsList.some(
+                    (value) => value.toLowerCase() === item.toLowerCase()
+                  );
+                  return (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => toggleInterest(item)}
+                      className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                        active
+                          ? "bg-[#6495ED]/15 text-[#6495ED]"
+                          : "bg-slate-100 text-slate-600 hover:bg-[#6495ED]/10 hover:text-[#6495ED]"
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  );
+                })}
+              </div>
+              {interestError ? (
+                <p className="text-xs text-rose-500">{interestError}</p>
+              ) : null}
+            </div>
+          ) : null}
+
+          {step === 3 ? (
+            <div className="mt-4 space-y-4 text-sm text-slate-600">
+              <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+                <p className="text-xs uppercase text-slate-400">Проверьте данные</p>
+                <p className="mt-2 font-semibold text-slate-900">
+                  @{normalizeUsername(username)}
+                </p>
+                {displayName ? <p>{displayName}</p> : null}
+                {bio ? <p className="mt-2">{bio}</p> : null}
+                {faculty || course ? (
+                  <p className="mt-2 text-xs text-slate-500">
+                    {faculty ? `Факультет: ${faculty}` : ""}
+                    {faculty && course ? " · " : ""}
+                    {course ? `${course} курс` : ""}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-xs text-slate-500">
+                    Факультет и курс можно добавить позже.
+                  </p>
+                )}
+                {interests ? (
+                  <p className="mt-2 text-xs text-slate-500">
+                    Интересы: {interests}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-xs text-slate-500">
+                    Интересы можно добавить позже.
+                  </p>
+                )}
+              </div>
+              <p className="text-xs text-slate-500">
+                Нажмите “Завершить”, чтобы перейти в ленту.
+              </p>
+            </div>
+          ) : null}
+
+          <div className="mt-6 flex items-center justify-between">
             <button
               type="button"
-              onClick={handleSubmit}
-              disabled={loading || !canSubmit}
-              className="w-full rounded-full bg-slate-900 px-5 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+              onClick={handleBack}
+              disabled={step === 0 || loading}
+              className="bubble-btn rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-60 pressable"
             >
-              {loading ? "Сохраняем..." : "Сохранить профиль"}
+              Назад
             </button>
+            {step < steps.length - 1 ? (
+              <button
+                type="button"
+                onClick={handleNext}
+                disabled={
+                  loading ||
+                  (step === 0
+                    ? !canProceedProfile
+                    : step === 1
+                      ? !canProceedFaculty
+                      : !canProceedInterests)
+                }
+                className="bubble-btn-primary rounded-full px-5 py-2 text-xs font-semibold disabled:opacity-60 pressable"
+              >
+                Далее
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={loading || !canSubmit}
+                className="bubble-btn-primary rounded-full px-5 py-2 text-xs font-semibold disabled:opacity-60 pressable"
+              >
+                {loading ? "Сохраняем..." : "Завершить"}
+              </button>
+            )}
           </div>
         </div>
       </main>

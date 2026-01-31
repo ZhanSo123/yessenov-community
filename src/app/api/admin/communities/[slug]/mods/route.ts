@@ -4,7 +4,7 @@ import { apiError, apiSuccess } from "@/lib/api-errors";
 import { createAuditLog } from "@/lib/audit-log";
 import { canModerate, getCommunityModeratorRole, requireUserApi } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { CommunityModSchema } from "@/lib/validators";
+import { CommunityMemberSchema } from "@/lib/validators";
 
 export const runtime = "nodejs";
 
@@ -31,17 +31,17 @@ export async function GET(
       }
     }
 
-    const moderators = await prisma.communityModerator.findMany({
+    const members = await prisma.communityMember.findMany({
       where: { communityId: community.id },
       include: {
         user: {
           select: { id: true, email: true, username: true, name: true, role: true },
         },
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { joinedAt: "asc" },
     });
 
-    return apiSuccess({ data: moderators, community });
+    return apiSuccess({ data: members, community });
   } catch (error) {
     if (error instanceof Response) {
       return error;
@@ -73,16 +73,19 @@ export async function POST(
       return apiError("BAD_REQUEST", 400);
     }
 
-    const parsed = CommunityModSchema.safeParse(body);
+    const parsed = CommunityMemberSchema.safeParse(body);
     if (!parsed.success) {
       return apiError("BAD_REQUEST", 400);
     }
 
-    const desiredRole = parsed.data.role ?? "MOD";
+    const desiredRole = parsed.data.role ?? "MEMBER";
 
     if (!canModerate(actor)) {
       const role = await getCommunityModeratorRole(community.id, actor.id);
-      if (role !== "OWNER") {
+      if (!role) {
+        return apiError("FORBIDDEN", 403);
+      }
+      if (role === "MOD" && desiredRole !== "MEMBER") {
         return apiError("FORBIDDEN", 403);
       }
       if (desiredRole === "OWNER") {
@@ -112,8 +115,8 @@ export async function POST(
       return apiError("NOT_FOUND", 404);
     }
 
-    const moderator = await prisma.$transaction(async (tx) => {
-      const updated = await tx.communityModerator.upsert({
+    const member = await prisma.$transaction(async (tx) => {
+      const updated = await tx.communityMember.upsert({
         where: {
           communityId_userId: {
             communityId: community.id,
@@ -136,7 +139,7 @@ export async function POST(
       await createAuditLog(tx, request, {
         actor: { connect: { id: actor.id } },
         action: "COMMUNITY_MOD_UPSERT",
-        targetType: "CommunityModerator",
+        targetType: "CommunityMember",
         targetId: updated.id,
         metadata: {
           communityId: community.id,
@@ -148,7 +151,7 @@ export async function POST(
       return updated;
     });
 
-    return apiSuccess({ data: moderator });
+    return apiSuccess({ data: member });
   } catch (error) {
     if (error instanceof Response) {
       return error;
@@ -187,7 +190,7 @@ export async function DELETE(
       }
     }
 
-    const target = await prisma.communityModerator.findUnique({
+    const target = await prisma.communityMember.findUnique({
       where: {
         communityId_userId: { communityId: community.id, userId },
       },
@@ -203,7 +206,7 @@ export async function DELETE(
     }
 
     await prisma.$transaction(async (tx) => {
-      await tx.communityModerator.delete({
+      await tx.communityMember.delete({
         where: {
           communityId_userId: { communityId: community.id, userId },
         },
@@ -212,7 +215,7 @@ export async function DELETE(
       await createAuditLog(tx, request, {
         actor: { connect: { id: actor.id } },
         action: "COMMUNITY_MOD_REMOVE",
-        targetType: "CommunityModerator",
+        targetType: "CommunityMember",
         targetId: target.id,
         metadata: {
           communityId: community.id,

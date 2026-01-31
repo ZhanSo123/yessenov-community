@@ -192,7 +192,7 @@ export default function NotificationsClient() {
   );
 
   return (
-    <div className="min-h-screen bg-[#f7f4ef] text-slate-900">
+    <div className="min-h-screen bg-white text-slate-900">
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-12">
         <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -205,7 +205,7 @@ export default function NotificationsClient() {
             type="button"
             onClick={handleMarkAll}
             disabled={markingAll || unreadCount === 0}
-            className="rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60"
+            className="bubble-btn rounded-full px-4 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60 pressable"
           >
             Отметить всё прочитанным
           </button>

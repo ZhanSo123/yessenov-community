@@ -342,11 +342,7 @@ export default function AdminQueuePage() {
             key={tab.id}
             type="button"
             onClick={() => setFilter(tab.id as typeof filter)}
-            className={`rounded-full border px-4 py-1 text-xs font-semibold ${
-              filter === tab.id
-                ? "border-slate-900 bg-slate-900 text-white"
-                : "border-slate-200 bg-white text-slate-600"
-            }`}
+            className={`${filter === tab.id ? "bubble-btn-primary" : "bubble-btn"} rounded-full px-4 py-1 text-xs font-semibold pressable`}
           >
             {tab.label}
           </button>
@@ -354,7 +350,7 @@ export default function AdminQueuePage() {
         <button
           type="button"
           onClick={() => loadQueue({ reset: true })}
-          className="rounded-full border border-slate-200 bg-white px-4 py-1 text-xs text-slate-600"
+          className="bubble-btn rounded-full px-4 py-1 text-xs font-semibold pressable"
         >
           Refresh
         </button>
@@ -391,7 +387,7 @@ export default function AdminQueuePage() {
             type="button"
             onClick={applyBulk}
             disabled={actionLoading}
-            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+            className="bubble-btn-primary rounded-xl px-4 py-2 text-sm font-semibold pressable"
           >
             {actionLoading ? "Применяем..." : "Применить"}
           </button>
@@ -450,14 +446,14 @@ export default function AdminQueuePage() {
                       <button
                         type="button"
                         onClick={() => resolveReport(item.id, "RESOLVED")}
-                        className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white"
+                        className="bubble-btn-primary rounded-full px-3 py-1 text-xs font-semibold pressable"
                       >
                         Resolve
                       </button>
                       <button
                         type="button"
                         onClick={() => resolveReport(item.id, "REJECTED")}
-                        className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600"
+                        className="bubble-btn rounded-full px-3 py-1 text-xs font-semibold pressable"
                       >
                         Reject
                       </button>
@@ -506,14 +502,14 @@ export default function AdminQueuePage() {
                       <button
                         type="button"
                         onClick={() => unbanUser(item.id)}
-                        className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600"
+                        className="bubble-btn rounded-full px-3 py-1 text-xs font-semibold pressable"
                       >
                         Unban
                       </button>
                       <button
                         type="button"
                         onClick={() => shadowbanUser(item.id)}
-                        className="rounded-full border border-slate-900 px-3 py-1 text-xs text-slate-900"
+                        className="bubble-btn rounded-full px-3 py-1 text-xs font-semibold pressable"
                       >
                         Shadowban
                       </button>
@@ -541,7 +537,7 @@ export default function AdminQueuePage() {
                         <button
                           type="button"
                           onClick={() => restorePost(item.id)}
-                          className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600"
+                          className="bubble-btn rounded-full px-3 py-1 text-xs font-semibold pressable"
                         >
                           Restore
                         </button>
@@ -549,7 +545,7 @@ export default function AdminQueuePage() {
                         <button
                           type="button"
                           onClick={() => deletePost(item.id)}
-                          className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white"
+                          className="bubble-btn-primary rounded-full px-3 py-1 text-xs font-semibold pressable"
                         >
                           Delete
                         </button>
@@ -568,7 +564,7 @@ export default function AdminQueuePage() {
           type="button"
           onClick={() => loadQueue({ cursor: nextCursor })}
           disabled={!canLoadMore}
-          className="rounded-full border border-slate-200 bg-white/80 px-5 py-2 text-sm text-slate-600 transition hover:text-slate-900 disabled:opacity-60"
+          className="bubble-btn rounded-full px-5 py-2 text-sm font-semibold disabled:opacity-60 pressable"
         >
           {loading ? "Загружаем..." : "Load more"}
         </button>

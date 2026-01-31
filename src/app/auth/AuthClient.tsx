@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 
+import DevLoginButton from "@/components/DevLoginButton";
 export default function AuthClient() {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
@@ -20,7 +21,7 @@ export default function AuthClient() {
             : "";
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#f8f5f0_0%,_#eef2f7_45%,_#e5edf8_100%)] text-slate-900">
+    <div className="min-h-screen bg-white text-slate-900">
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-6 py-16">
         <section className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-6">
@@ -47,13 +48,13 @@ export default function AuthClient() {
               <div className="grid gap-3">
                 <Link
                   href="/auth/login"
-                  className="rounded-full bg-slate-900 px-5 py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800"
+                  className="bubble-btn-primary rounded-full px-5 py-3 text-center text-sm font-semibold pressable"
                 >
                   Войти
                 </Link>
                 <Link
                   href="/auth/register"
-                  className="rounded-full border border-slate-300 bg-white px-5 py-3 text-center text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400"
+                  className="bubble-btn rounded-full px-5 py-3 text-center text-sm font-semibold pressable"
                 >
                   Создать аккаунт
                 </Link>
@@ -66,10 +67,11 @@ export default function AuthClient() {
               <button
                 type="button"
                 onClick={() => signIn("google", { callbackUrl: "/" })}
-                className="w-full rounded-full border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300"
+                className="bubble-btn w-full rounded-full px-5 py-3 text-sm font-semibold pressable"
               >
                 Продолжить с Google
               </button>
+              <DevLoginButton />
               <p className="text-xs text-slate-500">
                 Регистрируясь, вы соглашаетесь с правилами сообщества.
               </p>

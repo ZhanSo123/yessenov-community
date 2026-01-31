@@ -51,7 +51,7 @@ export default function MessageComposer({
         <button
           type="submit"
           disabled={!isValid || sending || disabled}
-          className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+          className="bubble-btn-primary rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-60 pressable"
         >
           {sending ? "Отправляем..." : "Отправить"}
         </button>

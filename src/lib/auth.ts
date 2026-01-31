@@ -10,7 +10,7 @@ type RequireUserOptions = {
   redirectTo?: string;
 };
 
-export type Role = "USER" | "MOD" | "ADMIN";
+export type Role = "USER" | "TEACHER" | "MOD" | "ADMIN";
 
 type SessionUser = {
   id?: string;
@@ -21,6 +21,7 @@ type SessionUser = {
 
 const ROLE_ORDER: Record<Role, number> = {
   USER: 0,
+  TEACHER: 0,
   MOD: 1,
   ADMIN: 2,
 };
@@ -146,11 +147,11 @@ export const canModerate = (user: { role: Role }) =>
 
 export const isAdmin = (user: { role: Role }) => user.role === "ADMIN";
 
-export const getCommunityModeratorRole = async (
+export const getCommunityMemberRole = async (
   communityId: number,
   userId: string
 ) => {
-  const record = await prisma.communityModerator.findUnique({
+  const record = await prisma.communityMember.findUnique({
     where: {
       communityId_userId: {
         communityId,
@@ -163,13 +164,24 @@ export const getCommunityModeratorRole = async (
   return record?.role ?? null;
 };
 
+export const getCommunityModeratorRole = async (
+  communityId: number,
+  userId: string
+) => {
+  const role = await getCommunityMemberRole(communityId, userId);
+  if (role === "MOD" || role === "OWNER") {
+    return role;
+  }
+  return null;
+};
+
 export const getCommunityScope = async (user: { id: string; role: Role }) => {
   if (canModerate(user)) {
     return null;
   }
 
-  const records = await prisma.communityModerator.findMany({
-    where: { userId: user.id },
+  const records = await prisma.communityMember.findMany({
+    where: { userId: user.id, role: { in: ["MOD", "OWNER"] } },
     select: { communityId: true, role: true },
   });
 
