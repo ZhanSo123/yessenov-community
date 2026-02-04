@@ -211,10 +211,12 @@ export default function OnboardingClient() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
-      <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-16">
+    <div className="min-h-screen min-h-[100svh] bg-[color:var(--background)] text-[color:var(--foreground)]">
+      <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-4 py-12 sm:px-6 sm:py-16">
         <header className="space-y-2">
-          <h1 className="text-3xl font-semibold">{t("onboarding.title")}</h1>
+          <h1 className="text-2xl font-semibold sm:text-3xl">
+            {t("onboarding.title")}
+          </h1>
           <p className="text-sm text-slate-600">
             {t("onboarding.subtitle")}
           </p>
@@ -234,7 +236,7 @@ export default function OnboardingClient() {
           </div>
         </header>
 
-        <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm">
+        <div className="bubble-surface rounded-2xl p-5 sm:rounded-3xl sm:p-6">
           {error ? (
             <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
               {error}

@@ -303,10 +303,27 @@ export const FollowToggleSchema = z.object({
 
 export const DmStartSchema = z.object({
   username: z.string().trim().min(1).max(32),
+  mode: z.enum(["CLOUD", "E2E"]).optional(),
 });
 
 export const DmSendSchema = z.object({
-  content: z.string().trim().min(1).max(1000),
+  content: z.string().trim().max(1000).optional(),
+  e2e: z
+    .object({
+      ciphertext: z.string().trim().min(16).max(10000),
+      ttlSeconds: z.number().int().positive().max(604800).optional(),
+    })
+    .optional(),
+}).superRefine((data, ctx) => {
+  const hasContent = Boolean(data.content && data.content.trim().length > 0);
+  const hasCiphertext = Boolean(data.e2e?.ciphertext);
+  if (!hasContent && !hasCiphertext) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "INVALID_INPUT",
+      path: ["content"],
+    });
+  }
 });
 
 export const ReportCategorySchema = z.enum([
@@ -450,4 +467,36 @@ export const OnboardingSchema = z.object({
   course: z.coerce.number().int().min(1).max(6).optional(),
   bio: z.string().trim().max(160).optional(),
   image: z.string().trim().max(2000000).optional(),
+});
+
+const E2eKeySchema = z.string().trim().min(16).max(4096);
+const E2eKeyIdSchema = z.string().trim().min(1).max(128);
+
+export const E2eDeviceSchema = z.object({
+  deviceLabel: z.string().trim().max(64).optional(),
+  identityKey: E2eKeySchema,
+});
+
+export const E2ePreKeysSchema = z.object({
+  deviceId: z.string().trim().min(8).max(64),
+  signedPreKey: z.object({
+    keyId: E2eKeyIdSchema,
+    publicKey: E2eKeySchema,
+    signature: E2eKeySchema,
+    expiresAt: z.string().datetime().optional(),
+  }),
+  oneTimePreKeys: z
+    .array(
+      z.object({
+        keyId: E2eKeyIdSchema,
+        publicKey: E2eKeySchema,
+      })
+    )
+    .max(100)
+    .default([]),
+});
+
+export const E2eTrustSchema = z.object({
+  peerDeviceId: z.string().trim().min(8).max(64),
+  peerIdentityKey: E2eKeySchema,
 });

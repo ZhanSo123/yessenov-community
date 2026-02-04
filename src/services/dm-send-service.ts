@@ -1,5 +1,6 @@
 import { getInfrastructure } from "@/infrastructure";
 import { prisma } from "@/lib/prisma";
+import { encryptText } from "@/lib/crypto/envelope";
 import { ConversationParticipantRepository } from "@/repositories/conversation-participant-repository";
 import { ConversationRepository } from "@/repositories/conversation-repository";
 import { MessageRepository } from "@/repositories/message-repository";
@@ -21,7 +22,7 @@ export type DmSendResult =
         };
       };
     }
-  | { ok: false; code: "NOT_FOUND" | "FORBIDDEN"; status: 404 | 403 };
+  | { ok: false; code: "NOT_FOUND" | "FORBIDDEN" | "BAD_REQUEST"; status: 404 | 403 | 400 };
 
 export class DmSendService {
   constructor(
@@ -35,13 +36,16 @@ export class DmSendService {
   async sendMessage(params: {
     conversationId: string;
     senderId: string;
-    content: string;
+    content?: string | null;
+    e2eCiphertext?: string | null;
+    e2eTtlSeconds?: number | null;
   }): Promise<DmSendResult> {
-    const { conversationId, senderId, content } = params;
+    const { conversationId, senderId, content, e2eCiphertext, e2eTtlSeconds } = params;
+    const trimmedContent = content?.trim() ?? "";
 
     const conversation = await this.conversationRepo.findUnique({
       where: { id: conversationId },
-      select: { id: true },
+      select: { id: true, encryptionMode: true },
     });
 
     if (!conversation) {
@@ -62,15 +66,38 @@ export class DmSendService {
       return { ok: false, code: "FORBIDDEN", status: 403 };
     }
 
+    const useE2e = conversation.encryptionMode === "E2E";
+    if (useE2e) {
+      if (!e2eCiphertext) {
+        return { ok: false, code: "BAD_REQUEST", status: 400 };
+      }
+    } else if (!trimmedContent) {
+      return { ok: false, code: "BAD_REQUEST", status: 400 };
+    }
+
+    const encrypted = useE2e ? null : encryptText(trimmedContent);
+    const expiresAt =
+      useE2e && e2eTtlSeconds
+        ? new Date(Date.now() + e2eTtlSeconds * 1000)
+        : null;
     const created = await this.messageRepo.create({
       data: {
         conversationId,
         senderId,
-        content: content.trim(),
+        content: null,
+        contentCiphertext: useE2e
+          ? e2eCiphertext
+          : encrypted?.ciphertext ?? null,
+        contentIv: useE2e ? null : encrypted?.iv ?? null,
+        contentTag: useE2e ? null : encrypted?.tag ?? null,
+        contentKeyId: useE2e ? null : encrypted?.keyId ?? null,
+        contentDekWrapped: useE2e ? null : encrypted?.dekWrapped ?? null,
+        contentDekIv: useE2e ? null : encrypted?.dekIv ?? null,
+        contentDekTag: useE2e ? null : encrypted?.dekTag ?? null,
+        expiresAt,
       },
       select: {
         id: true,
-        content: true,
         createdAt: true,
         sender: {
           select: {
@@ -111,15 +138,22 @@ export class DmSendService {
       select: { userId: true },
     });
 
+    const payloadMessage = {
+      id: created.id,
+      content: useE2e ? e2eCiphertext! : trimmedContent,
+      createdAt: created.createdAt,
+      sender: created.sender,
+    };
+
     await Promise.all(
       participants.map((participant) =>
         this.realtime.emit(`user:${participant.userId}`, "dm.message", {
           conversationId,
-          message: created,
+          message: payloadMessage,
         })
       )
     );
 
-    return { ok: true, payload: { data: created } };
+    return { ok: true, payload: { data: payloadMessage } };
   }
 }

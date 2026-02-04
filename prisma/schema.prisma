@@ -49,9 +49,82 @@ model User {
   messages      Message[]
   errorLogs     ErrorLog[]
   resolvedErrorLogs ErrorLog[] @relation("ErrorResolvedBy")
+  devices       UserDevice[]
+  e2eTrusts     E2eTrust[]
 
   @@index([bannedUntil])
   @@index([shadowBannedAt])
+}
+
+model E2eTrust {
+  id                 String   @id @default(cuid())
+  userId             String
+  peerDeviceId       String
+  peerIdentityKeyHash String
+  verifiedAt         DateTime @default(now())
+  revokedAt          DateTime?
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  peerDevice UserDevice @relation(fields: [peerDeviceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, peerDeviceId])
+  @@index([userId, verifiedAt])
+}
+
+model UserDevice {
+  id          String   @id @default(cuid())
+  userId      String
+  label       String?
+  createdAt   DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  identityKey   UserIdentityKey?
+  signedPreKeys UserSignedPreKey[]
+  oneTimePreKeys UserOneTimePreKey[]
+
+  @@index([userId, lastSeenAt])
+}
+
+model UserIdentityKey {
+  id        String   @id @default(cuid())
+  deviceId  String   @unique
+  publicKey String
+  createdAt DateTime @default(now())
+
+  device    UserDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+}
+
+model UserSignedPreKey {
+  id        String   @id @default(cuid())
+  deviceId  String
+  keyId     String
+  publicKey String
+  signature String
+  createdAt DateTime @default(now())
+  expiresAt DateTime?
+
+  device UserDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, keyId])
+  @@index([deviceId, createdAt])
+}
+
+model UserOneTimePreKey {
+  id         String   @id @default(cuid())
+  deviceId   String
+  keyId      String
+  publicKey  String
+  createdAt  DateTime @default(now())
+  consumedAt DateTime?
+
+  device UserDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, keyId])
+  @@index([deviceId, createdAt])
+  @@index([deviceId, consumedAt])
 }
 
 model Community {
@@ -130,6 +203,7 @@ enum NotificationType {
   LIKE
   FOLLOW
   MENTION
+  SECURITY
 }
 
 model Conversation {
@@ -138,11 +212,17 @@ model Conversation {
   updatedAt     DateTime @updatedAt
   lastMessageAt DateTime?
   lastMessageId String?
+  encryptionMode EncryptionMode @default(CLOUD)
 
   participants  ConversationParticipant[]
   messages      Message[]
 
   @@index([lastMessageAt, id])
+}
+
+enum EncryptionMode {
+  CLOUD
+  E2E
 }
 
 model ConversationParticipant {
@@ -163,8 +243,16 @@ model Message {
   id             String   @id @default(cuid())
   conversationId String
   senderId       String
-  content        String
+  content        String?
+  contentCiphertext String?
+  contentIv      String?
+  contentTag     String?
+  contentKeyId   String?
+  contentDekWrapped String?
+  contentDekIv   String?
+  contentDekTag  String?
   createdAt      DateTime @default(now())
+  expiresAt      DateTime?
   deletedAt      DateTime?
 
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -172,6 +260,7 @@ model Message {
 
   @@index([conversationId, createdAt])
   @@index([conversationId, deletedAt, createdAt])
+  @@index([expiresAt])
   @@index([senderId, createdAt])
 }
 

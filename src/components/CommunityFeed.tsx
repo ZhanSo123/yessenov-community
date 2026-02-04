@@ -176,13 +176,13 @@ export default function CommunityFeed() {
   );
 
   return (
-    <div className="relative min-h-screen bg-white text-slate-900">
-      <main className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-6 pb-16 pt-10">
+    <div className="relative min-h-screen min-h-[100svh] bg-[color:var(--background)] text-[color:var(--foreground)]">
+      <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 pb-16 pt-10 sm:gap-8 sm:px-6">
         <header className="flex flex-col gap-3">
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
             {t("community_feed.title.private")}
           </p>
-          <h1 className="text-3xl font-semibold sm:text-4xl">
+          <h1 className="text-2xl font-semibold sm:text-4xl">
             {t("community_feed.subtitle.private")}
           </h1>
           <p className="text-sm text-slate-600">
@@ -205,7 +205,7 @@ export default function CommunityFeed() {
             {Array.from({ length: 3 }).map((_, index) => (
               <div
                 key={`community-feed-skeleton-${index}`}
-                className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm animate-pulse"
+                className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm animate-pulse sm:p-5"
               >
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-slate-200" />

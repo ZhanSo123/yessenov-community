@@ -14,6 +14,64 @@
   --font-jetbrains-mono: "JetBrains Mono", "SFMono-Regular", Menlo, monospace;
 }
 
+:root[data-theme="dark"] {
+  --background: #0b1220;
+  --foreground: #e2e8f0;
+  --brand: #79b8ff;
+  --brand-strong: #4a9bff;
+  --surface: rgba(15, 23, 42, 0.72);
+  --surface-strong: rgba(15, 23, 42, 0.9);
+  --border: rgba(148, 163, 184, 0.24);
+  --border-strong: rgba(148, 163, 184, 0.4);
+  --text-muted: #94a3b8;
+}
+
+:root[data-theme="dark"] .text-slate-900,
+:root[data-theme="dark"] .text-slate-800,
+:root[data-theme="dark"] .text-slate-700 {
+  color: var(--foreground);
+}
+
+:root[data-theme="dark"] .text-slate-600,
+:root[data-theme="dark"] .text-slate-500,
+:root[data-theme="dark"] .text-slate-400,
+:root[data-theme="dark"] .text-slate-300 {
+  color: var(--text-muted);
+}
+
+:root[data-theme="dark"] .hover\:text-slate-900:hover,
+:root[data-theme="dark"] .hover\:text-slate-700:hover {
+  color: var(--foreground);
+}
+
+:root[data-theme="dark"] .bg-white {
+  background-color: var(--surface-strong);
+}
+
+:root[data-theme="dark"] .bg-white\/90,
+:root[data-theme="dark"] .bg-white\/80,
+:root[data-theme="dark"] .bg-white\/70 {
+  background-color: var(--surface);
+}
+
+:root[data-theme="dark"] .bg-slate-50 {
+  background-color: #0f172a;
+}
+
+:root[data-theme="dark"] .bg-slate-100,
+:root[data-theme="dark"] .bg-slate-200 {
+  background-color: rgba(148, 163, 184, 0.12);
+}
+
+:root[data-theme="dark"] .border-slate-100,
+:root[data-theme="dark"] .border-slate-200 {
+  border-color: var(--border);
+}
+
+:root[data-theme="dark"] .border-slate-300 {
+  border-color: var(--border-strong);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -26,6 +84,7 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  -webkit-text-size-adjust: 100%;
 }
 
 .app-bg {
@@ -36,6 +95,13 @@ body {
     radial-gradient(1200px 800px at 0% -10%, rgba(123, 183, 255, 0.22), transparent 60%),
     radial-gradient(900px 700px at 100% 0%, rgba(164, 214, 255, 0.22), transparent 60%),
     linear-gradient(180deg, #f8faff 0%, #f3f6fb 100%);
+}
+
+:root[data-theme="dark"] .app-bg {
+  background:
+    radial-gradient(1200px 800px at 0% -10%, rgba(79, 140, 220, 0.18), transparent 60%),
+    radial-gradient(900px 700px at 100% 0%, rgba(60, 100, 170, 0.2), transparent 60%),
+    linear-gradient(180deg, #0b1220 0%, #0f172a 100%);
 }
 
 .app-orb {
@@ -124,7 +190,7 @@ body {
 .bubble-btn {
   border: 1px solid var(--border);
   background: var(--surface);
-  color: #0f172a;
+  color: var(--foreground);
   box-shadow: 0 12px 26px rgba(20, 40, 90, 0.08);
   transition: border-color 180ms ease, color 180ms ease, box-shadow 180ms ease,
     background 180ms ease, transform 120ms ease;
@@ -195,7 +261,7 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #94a3b8;
+  color: var(--text-muted);
   transition: color 200ms ease;
 }
 
@@ -251,6 +317,10 @@ body {
   box-shadow: 0 10px 20px rgba(15, 35, 90, 0.05);
 }
 
+:root[data-theme="dark"] .bubble-chip {
+  background: rgba(30, 41, 59, 0.8);
+}
+
 .bubble-chip-active {
   border: 1px solid rgba(74, 155, 255, 0.35);
   background: rgba(123, 183, 255, 0.16);
@@ -262,6 +332,10 @@ body {
   background: rgba(255, 255, 255, 0.92);
   color: var(--foreground);
   transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+:root[data-theme="dark"] .bubble-input {
+  background: rgba(15, 23, 42, 0.85);
 }
 
 .bubble-input:focus {
@@ -286,4 +360,42 @@ body {
   background: rgba(227, 246, 255, 0.75);
   border-color: rgba(74, 155, 255, 0.35);
   box-shadow: 0 20px 46px rgba(74, 155, 255, 0.18);
+}
+
+:root[data-theme="dark"] .bubble-highlight {
+  background: rgba(30, 58, 138, 0.3);
+  border-color: rgba(96, 165, 250, 0.4);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.6);
+}
+
+@media (max-width: 480px) {
+  .app-orb {
+    display: none;
+  }
+
+  .app-bg {
+    background: linear-gradient(180deg, #f9fbff 0%, #f1f5fb 100%);
+  }
+
+  :root[data-theme="dark"] .app-bg {
+    background: linear-gradient(180deg, #0b1220 0%, #0f172a 100%);
+  }
+
+  .bubble-surface,
+  .bubble-surface-strong,
+  .bubble-btn,
+  .bubble-btn-primary {
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .nav-item {
+    height: 48px;
+    width: 48px;
+    border-radius: 16px;
+  }
+
+  .nav-item::before {
+    display: none;
+  }
 }

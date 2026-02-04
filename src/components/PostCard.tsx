@@ -88,7 +88,7 @@ export default function PostCard({
     : null;
   const handleProfilePrefetch = () => {
     if (profileHref) {
-      router.prefetch(profileHref);
+      void router.prefetch(profileHref);
     }
   };
   const avatarInitial = (displayName ?? post.author.username ?? t("common.user"))
@@ -220,8 +220,8 @@ export default function PostCard({
   return (
     <>
       <article
-        className={`rounded-3xl p-5 bubble-surface transition ${
-          indent ? "ml-6 border-l-4 border-l-slate-200" : ""
+        className={`rounded-2xl p-4 bubble-surface transition sm:rounded-3xl sm:p-5 ${
+          indent ? "ml-6 border-l-4 border-l-[color:var(--border)]" : ""
         } ${highlight ? "bubble-highlight" : ""}`}
       >
         <div className="flex items-start gap-3">
@@ -229,6 +229,7 @@ export default function PostCard({
           <Link
             href={profileHref}
             onMouseEnter={handleProfilePrefetch}
+            onTouchStart={handleProfilePrefetch}
             className="shrink-0"
           >
             {post.author.image ? (
@@ -238,7 +239,7 @@ export default function PostCard({
                 className="h-10 w-10 rounded-full object-cover"
               />
             ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-600">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[color:var(--border)] text-sm font-semibold text-[color:var(--text-muted)]">
                 {avatarInitial}
               </div>
             )}
@@ -250,7 +251,7 @@ export default function PostCard({
             className="h-10 w-10 rounded-full object-cover"
           />
         ) : (
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-600">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[color:var(--border)] text-sm font-semibold text-[color:var(--text-muted)]">
             {avatarInitial}
           </div>
         )}
@@ -405,7 +406,7 @@ export default function PostCard({
             </>
           )}
           {showActions && !isHidden && !isDeletedEffective ? (
-            <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-slate-500">
+            <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-slate-500 sm:gap-4">
               <button
                 type="button"
                 onClick={() => {

@@ -32,7 +32,7 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} className={manrope.variable}>
-      <body className="antialiased text-slate-900">
+      <body className="antialiased">
         <div className="app-bg" aria-hidden="true">
           <div className="app-orb app-orb-1" />
           <div className="app-orb app-orb-2" />

@@ -20,8 +20,9 @@ export class DmStartService {
   async startConversation(params: {
     actorId: string;
     targetUsernameLower: string;
+    mode?: "CLOUD" | "E2E";
   }): Promise<DmStartResult> {
-    const { actorId, targetUsernameLower } = params;
+    const { actorId, targetUsernameLower, mode = "CLOUD" } = params;
 
     const target = await this.userRepo.findUnique({
       where: { usernameLower: targetUsernameLower },
@@ -51,6 +52,7 @@ export class DmStartService {
         AND: [
           { participants: { some: { userId: actorId } } },
           { participants: { some: { userId: target.id } } },
+          { encryptionMode: mode },
         ],
       },
       select: { id: true },
@@ -66,6 +68,7 @@ export class DmStartService {
           AND: [
             { participants: { some: { userId: actorId } } },
             { participants: { some: { userId: target.id } } },
+            { encryptionMode: mode },
           ],
         },
         select: { id: true },
@@ -77,6 +80,7 @@ export class DmStartService {
 
       return tx.conversation.create({
         data: {
+          encryptionMode: mode,
           participants: {
             create: [{ userId: actorId }, { userId: target.id }],
           },

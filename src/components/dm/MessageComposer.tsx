@@ -37,19 +37,19 @@ export default function MessageComposer({
     }
   };
 
-  return (
+    return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm"
+      className="bubble-surface flex flex-col gap-2 rounded-2xl p-4"
     >
       <textarea
         value={content}
         onChange={(event) => setContent(event.target.value)}
         placeholder={t("dm.message.placeholder")}
         rows={3}
-        className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+        className="bubble-input w-full resize-none rounded-xl px-3 py-2 text-sm text-[color:var(--foreground)] outline-none transition"
       />
-      <div className="flex items-center justify-between text-xs text-slate-400">
+      <div className="flex items-center justify-between text-xs text-[color:var(--text-muted)]">
         <span>{trimmed.length} / 1000</span>
         <button
           type="submit"

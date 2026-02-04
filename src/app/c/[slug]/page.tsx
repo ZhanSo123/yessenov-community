@@ -128,13 +128,13 @@ export default function CommunityPage() {
   }, [slug]);
 
   return (
-    <div className="relative min-h-screen bg-white text-slate-900">
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 pb-16 pt-12">
+    <div className="relative min-h-screen min-h-[100svh] bg-[color:var(--background)] text-[color:var(--foreground)]">
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 pb-16 pt-12 sm:px-6">
         <header className="flex flex-col gap-3">
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
             {t("community.page.kicker")}
           </p>
-          <h1 className="text-3xl font-semibold sm:text-4xl">
+          <h1 className="text-2xl font-semibold sm:text-4xl">
             {community?.title ?? t("community.page.title_fallback")}
           </h1>
           {community ? (

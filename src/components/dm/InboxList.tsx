@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSession } from "next-auth/react";
 
 import ConversationRow from "@/components/dm/ConversationRow";
 import { useI18n } from "@/lib/i18n/useI18n";
+import { getRealtimeClient } from "@/lib/realtime/client";
 
 type Participant = {
   username: string | null;
@@ -32,13 +34,15 @@ type InboxResponse = {
 
 export default function InboxList() {
   const { t } = useI18n();
+  const { data: session } = useSession();
+  const currentUserId = session?.user?.id ?? null;
   const [items, setItems] = useState<InboxItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState("");
   const [nextCursor, setNextCursor] = useState<string | null>(null);
 
-  const loadInbox = async (cursor?: string | null, append = false) => {
+  const loadInbox = useCallback(async (cursor?: string | null, append = false) => {
     const url = new URL("/api/dm/inbox", window.location.origin);
     if (cursor) {
       url.searchParams.set("cursor", cursor);
@@ -56,7 +60,7 @@ export default function InboxList() {
       setItems(payload.data ?? []);
     }
     setNextCursor(payload.nextCursor ?? null);
-  };
+  }, [t]);
 
   useEffect(() => {
     let active = true;
@@ -83,17 +87,63 @@ export default function InboxList() {
 
     load();
 
-    const interval = window.setInterval(() => {
-      loadInbox(null, false).catch(() => {
-        // ignore polling errors
-      });
-    }, 20000);
-
     return () => {
       active = false;
-      window.clearInterval(interval);
     };
-  }, []);
+  }, [loadInbox]);
+
+  useEffect(() => {
+    if (!currentUserId) {
+      return;
+    }
+
+    const client = getRealtimeClient();
+    return client.subscribe("dm.message", (event) => {
+      const payload = event.payload as {
+        conversationId?: string;
+        message?: {
+          id: string;
+          content: string;
+          createdAt: string;
+          sender: {
+            id: string;
+            username: string | null;
+            displayName: string | null;
+            image: string | null;
+          };
+        };
+      };
+      if (!payload?.conversationId || !payload?.message) {
+        return;
+      }
+
+      setItems((current) => {
+        const index = current.findIndex((item) => item.id === payload.conversationId);
+        if (index === -1) {
+          void loadInbox(null, false).catch(() => {
+            // ignore refresh errors
+          });
+          return current;
+        }
+
+        const currentItem = current[index];
+        const isMine = payload.message.sender.id === currentUserId;
+        const updatedItem: InboxItem = {
+          ...currentItem,
+          lastMessage: {
+            id: payload.message.id,
+            content: payload.message.content,
+            createdAt: payload.message.createdAt,
+            senderId: payload.message.sender.id,
+          },
+          lastMessageAt: payload.message.createdAt,
+          unreadCount: isMine ? currentItem.unreadCount : currentItem.unreadCount + 1,
+        };
+
+        return [updatedItem, ...current.filter((_, i) => i !== index)];
+      });
+    });
+  }, [currentUserId, loadInbox]);
 
   const handleLoadMore = async () => {
     if (!nextCursor || loadingMore) {
@@ -128,16 +178,16 @@ export default function InboxList() {
           {Array.from({ length: 4 }).map((_, index) => (
             <div
               key={`dm-skeleton-${index}`}
-              className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 shadow-sm animate-pulse"
+              className="flex items-center justify-between rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] px-4 py-3 shadow-sm animate-pulse"
             >
               <div className="flex items-center gap-3">
-                <div className="h-11 w-11 rounded-full bg-slate-200" />
+                <div className="h-11 w-11 rounded-full bg-[color:var(--border)]" />
                 <div className="space-y-2">
-                  <div className="h-3 w-28 rounded bg-slate-200" />
-                  <div className="h-3 w-20 rounded bg-slate-200" />
+                  <div className="h-3 w-28 rounded bg-[color:var(--border)]" />
+                  <div className="h-3 w-20 rounded bg-[color:var(--border)]" />
                 </div>
               </div>
-              <div className="h-3 w-10 rounded bg-slate-200" />
+              <div className="h-3 w-10 rounded bg-[color:var(--border)]" />
             </div>
           ))}
         </div>
@@ -148,7 +198,7 @@ export default function InboxList() {
         </div>
       ) : null}
       {emptyState ? (
-        <div className="rounded-xl border border-slate-200 bg-white/90 p-5 text-sm text-slate-500">
+        <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface)] p-5 text-sm text-[color:var(--text-muted)]">
           {emptyState}
         </div>
       ) : null}
@@ -174,10 +224,10 @@ export default function InboxList() {
           type="button"
           onClick={handleLoadMore}
           disabled={loadingMore}
-        className="bubble-btn rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-60 pressable"
-      >
+          className="bubble-btn rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-60 pressable"
+        >
           {loadingMore ? t("dm.inbox.loading_more") : t("dm.inbox.load_more")}
-      </button>
+        </button>
       ) : null}
     </div>
   );

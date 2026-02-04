@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
     const result = await service.startConversation({
       actorId: me.id,
       targetUsernameLower: usernameResult.usernameLower,
+      mode: parsed.data.mode ?? "CLOUD",
     });
 
     if (!result.ok) {

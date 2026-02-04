@@ -370,8 +370,8 @@ export default function ThreadPage() {
   );
 
   return (
-    <div className="relative min-h-screen bg-white text-slate-900">
-      <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 pb-16 pt-10">
+    <div className="relative min-h-screen min-h-[100svh] bg-[color:var(--background)] text-[color:var(--foreground)]">
+      <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 pb-16 pt-10 sm:px-6">
         <Link href="/" className="text-xs text-slate-500">
           {t("thread.back")}
         </Link>

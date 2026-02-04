@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 
 import { getInfrastructure } from "@/infrastructure";
 import { prisma } from "@/lib/prisma";
+import { decryptText } from "@/lib/crypto/envelope";
 import { ConversationParticipantRepository } from "@/repositories/conversation-participant-repository";
 import { MessageRepository } from "@/repositories/message-repository";
 
@@ -18,7 +19,15 @@ type InboxCursor = {
 
 type LastMessageRow = {
   id: string;
-  content: string;
+  content: string | null;
+  contentCiphertext?: string | null;
+  contentIv?: string | null;
+  contentTag?: string | null;
+  contentKeyId?: string | null;
+  contentDekWrapped?: string | null;
+  contentDekIv?: string | null;
+  contentDekTag?: string | null;
+  expiresAt?: Date | null;
   createdAt: Date;
   senderId: string;
 };
@@ -29,6 +38,7 @@ export type DmInboxResult =
       payload: {
         data: Array<{
           id: string;
+          encryptionMode: "CLOUD" | "E2E";
           participant: {
             username: string | null;
             displayName: string | null;
@@ -51,6 +61,7 @@ export type DmInboxResult =
   | { ok: false; code: "BAD_REQUEST"; status: 400 };
 
 const INBOX_CACHE_TTL_MS = 12 * 1000;
+const ALLOW_PLAINTEXT_DM_CACHE = process.env.DM_CACHE_PLAINTEXT === "true";
 
 const parseInboxCursor = (value: string | null | undefined): InboxCursor | null => {
   if (!value) {
@@ -97,9 +108,11 @@ export class DmInboxService {
     }
 
     const cacheKey = `dm:inbox:${viewer.id}:${viewer.role}:${limit}:${cursorToken ?? "none"}`;
-    const cached = await this.cache.get<DmInboxResult["payload"]>(cacheKey);
-    if (cached) {
-      return { ok: true, payload: cached, cacheKey, cached: true };
+    if (ALLOW_PLAINTEXT_DM_CACHE) {
+      const cached = await this.cache.get<DmInboxResult["payload"]>(cacheKey);
+      if (cached) {
+        return { ok: true, payload: cached, cacheKey, cached: true };
+      }
     }
 
     const where: Prisma.ConversationParticipantWhereInput = { userId: viewer.id };
@@ -137,6 +150,7 @@ export class DmInboxService {
             id: true,
             lastMessageAt: true,
             lastMessageId: true,
+            encryptionMode: true,
             participants: {
               where: { userId: { not: viewer.id } },
               select: {
@@ -170,12 +184,30 @@ export class DmInboxService {
       .map((item) => item.conversation.lastMessageId)
       .filter((id): id is string => Boolean(id));
 
+    const now = new Date();
     let lastMessages: LastMessageRow[] = [];
     if (lastMessageIds.length) {
       const lastMessagesStart = performance.now();
       lastMessages = await this.messageRepo.findMany({
-        where: { id: { in: lastMessageIds }, deletedAt: null },
-        select: { id: true, content: true, createdAt: true, senderId: true },
+        where: {
+          id: { in: lastMessageIds },
+          deletedAt: null,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+        select: {
+          id: true,
+          content: true,
+          contentCiphertext: true,
+          contentIv: true,
+          contentTag: true,
+          contentKeyId: true,
+          contentDekWrapped: true,
+          contentDekIv: true,
+          contentDekTag: true,
+          expiresAt: true,
+          createdAt: true,
+          senderId: true,
+        },
       });
       if (logDb) {
         logDb("message.findMany.lastMessages", performance.now() - lastMessagesStart);
@@ -203,6 +235,7 @@ export class DmInboxService {
           AND m."conversationId" IN (${Prisma.join(conversationIds)})
           AND m."senderId" <> ${viewer.id}
           AND m."deletedAt" IS NULL
+          AND (m."expiresAt" IS NULL OR m."expiresAt" > NOW())
           AND m."createdAt" > cp."lastReadAt"
         GROUP BY m."conversationId"
       `);
@@ -215,6 +248,27 @@ export class DmInboxService {
       unreadRows.map((row) => [row.conversationId, row.count])
     );
 
+    const resolveContent = (message: LastMessageRow, encryptionMode: "CLOUD" | "E2E") => {
+      if (encryptionMode === "E2E") {
+        return message.contentCiphertext ?? "Encrypted message";
+      }
+      if (message.contentCiphertext && message.contentIv && message.contentTag) {
+        const decrypted = decryptText({
+          ciphertext: message.contentCiphertext,
+          iv: message.contentIv,
+          tag: message.contentTag,
+          keyId: message.contentKeyId,
+          dekWrapped: message.contentDekWrapped ?? undefined,
+          dekIv: message.contentDekIv ?? undefined,
+          dekTag: message.contentDekTag ?? undefined,
+        });
+        if (decrypted !== null) {
+          return decrypted;
+        }
+      }
+      return message.content ?? "Encrypted message";
+    };
+
     const payload = {
       data: sliced.map((item) => {
         const participant = item.conversation.participants[0]?.user ?? null;
@@ -224,6 +278,7 @@ export class DmInboxService {
 
         return {
           id: item.conversationId,
+          encryptionMode: item.conversation.encryptionMode,
           participant: participant
             ? {
                 username: participant.username,
@@ -234,7 +289,7 @@ export class DmInboxService {
           lastMessage: lastMessage
             ? {
                 id: lastMessage.id,
-                content: lastMessage.content,
+                content: resolveContent(lastMessage, item.conversation.encryptionMode),
                 createdAt: lastMessage.createdAt,
                 senderId: lastMessage.senderId,
               }
@@ -246,7 +301,14 @@ export class DmInboxService {
       nextCursor,
     };
 
-    await this.cache.set(cacheKey, payload, INBOX_CACHE_TTL_MS);
+    if (ALLOW_PLAINTEXT_DM_CACHE) {
+      const allCloud = sliced.every(
+        (item) => item.conversation.encryptionMode === "CLOUD"
+      );
+      if (allCloud) {
+        await this.cache.set(cacheKey, payload, INBOX_CACHE_TTL_MS);
+      }
+    }
 
     return { ok: true, payload, cacheKey, cached: false };
   }

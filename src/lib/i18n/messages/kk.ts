@@ -90,6 +90,10 @@ const kk: Record<MessageKey, string> = {
   "settings.actions.google": "Google",
   "settings.language.title": "Тіл",
   "settings.language.subtitle": "Интерфейс тілін таңдаңыз.",
+  "settings.theme.title": "Тақырып",
+  "settings.theme.subtitle": "Ашық және қою тақырыпты ауыстырыңыз.",
+  "settings.theme.light": "Ашық",
+  "settings.theme.dark": "Қою",
 
   "create.title": "Пост жасау",
   "create.subtitle": "Жаңа тредке жылдам черновик.",
@@ -348,6 +352,7 @@ const kk: Record<MessageKey, string> = {
   "notifications.like": "{{actor}} постыңызды лайктады",
   "notifications.follow": "{{actor}} сізге жазылды",
   "notifications.mention": "{{actor}} сізді атап өтті",
+  "notifications.security": "Қауіпсіздік: аккаунтқа жаңа құрылғы қосылды",
   "notifications.default": "Жаңа хабарландыру",
   "onboarding.steps.profile": "Профиль",
   "onboarding.steps.faculty": "Факультет",

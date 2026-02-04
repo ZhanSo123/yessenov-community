@@ -69,8 +69,9 @@ export default function ConversationRow({
   return (
     <Link
       href={href}
-      onMouseEnter={() => router.prefetch(href)}
-      className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 shadow-sm transition hover:border-slate-300"
+      onMouseEnter={() => void router.prefetch(href)}
+      onTouchStart={() => void router.prefetch(href)}
+      className="bubble-surface flex items-center justify-between rounded-2xl px-4 py-3 transition hover:border-[color:var(--border-strong)]"
     >
       <div className="flex items-center gap-3">
         {participant?.image ? (
@@ -80,20 +81,26 @@ export default function ConversationRow({
             className="h-11 w-11 rounded-full object-cover"
           />
         ) : (
-          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-600">
+          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[color:var(--border)] text-sm font-semibold text-[color:var(--text-muted)]">
             {avatarInitial}
           </div>
         )}
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-slate-900">{displayName}</p>
-          <p className="text-xs text-slate-500">{handle}</p>
-          <p className="mt-1 truncate text-xs text-slate-400">{preview}</p>
+          <p className="text-sm font-semibold text-[color:var(--foreground)]">
+            {displayName}
+          </p>
+          <p className="text-xs text-[color:var(--text-muted)]">{handle}</p>
+          <p className="mt-1 truncate text-xs text-[color:var(--text-muted)]">
+            {preview}
+          </p>
         </div>
       </div>
 
       <div className="flex flex-col items-end gap-2">
         {timeLabel ? (
-          <span className="text-[11px] text-slate-400">{timeLabel}</span>
+          <span className="text-[11px] text-[color:var(--text-muted)]">
+            {timeLabel}
+          </span>
         ) : null}
         {unreadCount > 0 ? (
           <span className="rounded-full bg-emerald-500 px-2 py-0.5 text-[10px] font-semibold text-white">

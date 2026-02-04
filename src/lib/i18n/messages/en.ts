@@ -88,6 +88,10 @@ const en = {
   "settings.actions.google": "Google",
   "settings.language.title": "Language",
   "settings.language.subtitle": "Choose the interface language.",
+  "settings.theme.title": "Theme",
+  "settings.theme.subtitle": "Switch between light and dark mode.",
+  "settings.theme.light": "Light",
+  "settings.theme.dark": "Dark",
 
   "create.title": "Create post",
   "create.subtitle": "A quick draft for a new thread.",
@@ -346,6 +350,7 @@ const en = {
   "notifications.like": "{{actor}} liked your post",
   "notifications.follow": "{{actor}} followed you",
   "notifications.mention": "{{actor}} mentioned you",
+  "notifications.security": "Security update: a new device was added to your account",
   "notifications.default": "New notification",
   "onboarding.steps.profile": "Profile",
   "onboarding.steps.faculty": "Faculty",

@@ -214,16 +214,18 @@ export default function SearchPage() {
   }, [normalizedQuery, error, items.length, loading, t]);
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
-      <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-12">
+    <div className="min-h-screen min-h-[100svh] bg-[color:var(--background)] text-[color:var(--foreground)]">
+      <main className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-4 py-10 sm:gap-6 sm:px-6 sm:py-12">
         <header className="space-y-2">
-          <h1 className="text-3xl font-semibold">{t("search.title")}</h1>
+          <h1 className="text-2xl font-semibold sm:text-3xl">
+            {t("search.title")}
+          </h1>
           <p className="text-sm text-slate-500">
             {t("search.subtitle")}
           </p>
         </header>
 
-        <div className="rounded-2xl border border-slate-200 bg-white/80 p-4 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white/80 p-3 shadow-sm sm:p-4">
           <input
             type="search"
             value={query}

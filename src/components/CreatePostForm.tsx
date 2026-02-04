@@ -132,7 +132,7 @@ export default function CreatePostForm({
   };
 
   return (
-    <section className="rounded-3xl p-5 bubble-surface">
+    <section className="rounded-2xl p-4 bubble-surface sm:rounded-3xl sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-slate-700">
           {t("create_form.title")}

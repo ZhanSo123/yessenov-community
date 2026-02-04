@@ -23,14 +23,14 @@ export default function AuthClient() {
             : "";
 
   return (
-    <div className="min-h-screen text-slate-900">
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-6 pb-20 pt-16">
-        <section className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+    <div className="min-h-screen min-h-[100svh] bg-[color:var(--background)] text-[color:var(--foreground)]">
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-4 pb-20 pt-16 sm:px-6">
+        <section className="grid gap-8 sm:gap-10 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-6">
             <div className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs uppercase tracking-[0.3em] text-slate-500 bubble-chip">
               {t("common.app_name")}
             </div>
-            <h1 className="text-4xl font-semibold leading-tight sm:text-5xl">
+            <h1 className="text-3xl font-semibold leading-tight sm:text-5xl">
               {t("auth.title")}
             </h1>
             <p className="max-w-xl text-sm text-slate-600">
@@ -38,7 +38,7 @@ export default function AuthClient() {
             </p>
           </div>
 
-          <div className="rounded-3xl p-6 bubble-surface-strong">
+          <div className="rounded-2xl p-5 bubble-surface sm:rounded-3xl sm:p-6 sm:bubble-surface-strong">
             <div className="space-y-4">
               <h2 className="text-xl font-semibold">{t("auth.card.title")}</h2>
               {errorMessage ? (

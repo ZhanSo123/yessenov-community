@@ -111,6 +111,7 @@ Yessenov Community — студенческая социальная сеть: �
   - каналы: `user:<id>`, `moderation:system` (только MOD/ADMIN)
 - **Search**: `/api/search/users`
 - **DM**: `/api/dm/inbox`, `/api/dm/start`, `/api/dm/[id]`, `/api/dm/[id]/send`, `/api/dm/[id]/read`
+- **E2E (keys)**: `GET/POST /api/e2e/devices`, `/api/e2e/prekeys`, `/api/e2e/bundle`, `/api/e2e/safety`, `/api/e2e/trust`
 - **Reports/Appeals**: `/api/admin/reports`, `/api/admin/appeals`
 - **Feedback**: `/api/feedback`
 - **Admin**: `/api/admin/*` (модерация, аудит, метрики, экспорт, очереди)
@@ -197,6 +198,12 @@ REALTIME_PROVIDER=redis
 2) Валидация Zod → проверка rate‑limit → auth
 3) Prisma сохраняет `Post`
 4) Создаются уведомления (mentions/replies)
+
+## 14) Приватность и шифрование
+См. документ `docs/privacy.md` — выбран подход:
+- «облачные чаты» с серверным envelope‑шифрованием (быстро, многодевайсно)
+- опциональные «секретные чаты» с E2E (Signal Protocol)
+Дополнительно: план E2E «секретных чатов» — `docs/secret-chats-plan.md`.
 
 ### Уведомления
 - при лайке/подписке/ответе создаются `Notification`

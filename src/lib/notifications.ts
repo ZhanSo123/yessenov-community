@@ -106,6 +106,13 @@ export const createNotification = async (input: CreateNotificationInput) => {
   }
 };
 
+export const createSecurityNotification = async (input: { userId: string }) => {
+  return createNotification({
+    userId: input.userId,
+    type: "SECURITY",
+  });
+};
+
 const mentionRegex = /@([a-zA-Z0-9._]{3,20})/g;
 
 export const createMentionNotifications = async (

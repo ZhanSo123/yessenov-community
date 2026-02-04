@@ -132,7 +132,7 @@ export default function MessageBubble({
             className="h-8 w-8 rounded-full object-cover"
           />
         ) : (
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-600">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--border)] text-xs font-semibold text-[color:var(--text-muted)]">
             {avatarInitial}
           </div>
         )
@@ -143,8 +143,8 @@ export default function MessageBubble({
       <div
         className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm shadow-sm ${
           isMine
-            ? "bg-slate-900 text-white"
-            : "border border-slate-200 bg-white text-slate-900"
+            ? "bg-[color:var(--brand-strong)] text-white"
+            : "border border-[color:var(--border)] bg-[color:var(--surface-strong)] text-[color:var(--foreground)]"
         }`}
       >
         {preview && postId ? (
@@ -153,7 +153,7 @@ export default function MessageBubble({
             className={`block rounded-xl border px-3 py-2 text-sm transition hover:border-[#6495ED]/40 ${
               isMine
                 ? "border-white/20 bg-white/10 text-white"
-                : "border-slate-200 bg-white text-slate-900"
+                : "border-[color:var(--border)] bg-[color:var(--surface)] text-[color:var(--foreground)]"
             }`}
           >
             <p className="text-xs font-semibold">
@@ -162,7 +162,7 @@ export default function MessageBubble({
                 t("common.user")}
             </p>
             {preview.author.username ? (
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-[color:var(--text-muted)]">
                 @{preview.author.username}
               </p>
             ) : null}
@@ -180,7 +180,7 @@ export default function MessageBubble({
         ) : null}
         <p
           className={`mt-2 text-[11px] ${
-            isMine ? "text-slate-200" : "text-slate-400"
+            isMine ? "text-white/80" : "text-[color:var(--text-muted)]"
           }`}
         >
           {timeLabel}

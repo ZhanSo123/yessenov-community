@@ -831,18 +831,18 @@ export default function HomeFeed() {
 
   return (
     <div
-      className="relative min-h-screen text-slate-900"
+      className="relative min-h-screen min-h-[100svh] bg-[color:var(--background)] text-[color:var(--foreground)]"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 pb-16 pt-10">
-        <header className="rounded-3xl p-5 bubble-surface-strong animate-fade-up">
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 pb-16 pt-10 sm:gap-8 sm:px-6">
+        <header className="rounded-2xl p-4 bubble-surface animate-fade-up sm:rounded-3xl sm:p-5 sm:bubble-surface-strong">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
                 {t("common.app_name")}
               </p>
-              <h1 className="text-3xl font-semibold sm:text-4xl">
+              <h1 className="text-2xl font-semibold sm:text-4xl">
                 {t("feed.title")}
               </h1>
               <p className="text-sm text-slate-600">
@@ -853,14 +853,14 @@ export default function HomeFeed() {
               <Link
                 href="/search"
                 aria-label={t("feed.search_aria")}
-                className="bubble-icon-btn flex h-10 w-10 items-center justify-center rounded-2xl pressable"
+                className="bubble-icon-btn flex h-9 w-9 items-center justify-center rounded-2xl pressable sm:h-10 sm:w-10"
               >
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="1.6"
-                  className="h-5 w-5"
+                  className="h-4 w-4 sm:h-5 sm:w-5"
                   aria-hidden="true"
                 >
                   <circle cx="11" cy="11" r="6.5" />
@@ -870,14 +870,14 @@ export default function HomeFeed() {
               <Link
                 href="/notifications"
                 aria-label={t("feed.notifications_aria")}
-                className="bubble-icon-btn relative flex h-10 w-10 items-center justify-center rounded-2xl pressable"
+                className="bubble-icon-btn relative flex h-9 w-9 items-center justify-center rounded-2xl pressable sm:h-10 sm:w-10"
               >
                 <svg
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="1.6"
-                  className="h-5 w-5"
+                  className="h-4 w-4 sm:h-5 sm:w-5"
                   aria-hidden="true"
                 >
                   <path
@@ -1071,11 +1071,11 @@ export default function HomeFeed() {
         ) : null}
 
         {loading ? (
-          <div className="space-y-4">
+          <div className="space-y-4 sm:space-y-5">
             {Array.from({ length: 3 }).map((_, index) => (
               <div
                 key={`feed-skeleton-${index}`}
-                className="rounded-3xl p-5 bubble-surface animate-pulse"
+                className="rounded-2xl p-4 bubble-surface animate-pulse sm:rounded-3xl sm:p-5"
               >
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-slate-200" />
@@ -1099,7 +1099,7 @@ export default function HomeFeed() {
           </p>
         ) : null}
 
-        <div className="space-y-4">
+        <div className="space-y-4 sm:space-y-5">
           {displayPosts.map((post, index) => {
             const numericId = typeof post.id === "number" ? post.id : null;
 

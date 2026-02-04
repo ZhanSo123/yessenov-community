@@ -42,11 +42,13 @@ export default async function MessagesPage() {
   const { t } = await getServerTranslator();
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
-      <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-12">
+    <div className="min-h-screen min-h-[100svh] bg-[color:var(--background)] text-[color:var(--foreground)]">
+      <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-10 sm:px-6 sm:py-12">
         <header>
-          <h1 className="text-3xl font-semibold">{t("messages.title")}</h1>
-          <p className="mt-2 text-sm text-slate-500">
+          <h1 className="text-2xl font-semibold sm:text-3xl">
+            {t("messages.title")}
+          </h1>
+          <p className="mt-2 text-sm text-[color:var(--text-muted)]">
             {t("messages.subtitle")}
           </p>
         </header>

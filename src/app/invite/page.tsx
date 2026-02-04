@@ -47,9 +47,9 @@ export default function InvitePage() {
   };
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
-      <main className="mx-auto flex w-full max-w-lg flex-col gap-6 px-6 py-16">
-        <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm">
+    <div className="min-h-screen min-h-[100svh] bg-[color:var(--background)] text-[color:var(--foreground)]">
+      <main className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 py-12 sm:px-6 sm:py-16">
+        <div className="bubble-surface rounded-2xl p-5 sm:rounded-3xl sm:p-6">
           <div className="space-y-2">
             <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
               {t("invite.kicker")}

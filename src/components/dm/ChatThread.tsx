@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import MessageBubble from "@/components/dm/MessageBubble";
 import MessageComposer from "@/components/dm/MessageComposer";
 import { useI18n } from "@/lib/i18n/useI18n";
+import { getRealtimeClient } from "@/lib/realtime/client";
 
 type Participant = {
   id: string;
@@ -222,9 +223,57 @@ export default function ChatThread({ conversationId }: { conversationId: string 
     }
   };
 
+  useEffect(() => {
+    if (!conversationId || !currentUserId) {
+      return;
+    }
+
+    const client = getRealtimeClient();
+    return client.subscribe("dm.message", (event) => {
+      const payload = event.payload as {
+        conversationId?: string;
+        message?: MessageItem;
+      };
+      if (!payload?.conversationId || !payload?.message) {
+        return;
+      }
+      if (payload.conversationId !== conversationId) {
+        return;
+      }
+
+      setMessages((current) => {
+        if (current.some((message) => message.id === payload.message!.id)) {
+          return current;
+        }
+
+        if (payload.message!.sender.id === currentUserId) {
+          const tempIndex = current.findIndex(
+            (message) => message.sending && message.content === payload.message!.content
+          );
+          if (tempIndex !== -1) {
+            const next = [...current];
+            next[tempIndex] = payload.message!;
+            return next;
+          }
+        }
+
+        return [...current, payload.message!];
+      });
+
+      if (payload.message.sender.id !== currentUserId) {
+        fetch(`/api/dm/${conversationId}/read`, {
+          method: "POST",
+          credentials: "include",
+        }).catch(() => {
+          // ignore
+        });
+      }
+    });
+  }, [conversationId, currentUserId]);
+
   return (
-    <div className="flex min-h-screen flex-col bg-white text-slate-900">
-      <div className="border-b border-slate-200 bg-white/80 px-6 py-4">
+    <div className="flex min-h-screen min-h-[100svh] flex-col bg-[color:var(--background)] text-[color:var(--foreground)]">
+      <div className="border-b border-[color:var(--border)] bg-[color:var(--surface-strong)] px-4 py-4 backdrop-blur sm:px-6">
         <div className="mx-auto flex w-full max-w-3xl items-center gap-3">
           {otherParticipant?.image ? (
             <img
@@ -237,7 +286,7 @@ export default function ChatThread({ conversationId }: { conversationId: string 
               className="h-10 w-10 rounded-full object-cover"
             />
           ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-600">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[color:var(--border)] text-sm font-semibold text-[color:var(--text-muted)]">
               {(otherParticipant?.displayName ||
                 otherParticipant?.username ||
                 t("common.user"))
@@ -246,21 +295,25 @@ export default function ChatThread({ conversationId }: { conversationId: string 
             </div>
           )}
           <div>
-            <p className="text-sm font-semibold text-slate-900">
+            <p className="text-sm font-semibold text-[color:var(--foreground)]">
               {otherParticipant?.displayName ||
                 otherParticipant?.username ||
                 t("dm.thread.title.default")}
             </p>
             {otherParticipant?.username ? (
-              <p className="text-xs text-slate-500">@{otherParticipant.username}</p>
+              <p className="text-xs text-[color:var(--text-muted)]">
+                @{otherParticipant.username}
+              </p>
             ) : null}
           </div>
         </div>
       </div>
 
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-6 py-6">
+      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6">
         {loading ? (
-          <p className="text-sm text-slate-500">{t("dm.thread.loading")}</p>
+          <p className="text-sm text-[color:var(--text-muted)]">
+            {t("dm.thread.loading")}
+          </p>
         ) : null}
         {error ? (
           <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">

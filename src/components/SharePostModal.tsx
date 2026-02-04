@@ -380,7 +380,7 @@ export default function SharePostModal({ post, open, onClose }: SharePostModalPr
       aria-modal="true"
     >
       <div
-        className="w-full max-w-lg h-[50vh] rounded-t-3xl bg-white p-6 shadow-xl overflow-hidden"
+        className="w-full max-w-lg h-[55vh] rounded-t-2xl bg-white p-4 shadow-xl overflow-hidden sm:h-[50vh] sm:rounded-t-3xl sm:p-6"
         style={{
           transform: `translateY(${sheetOffset}px)`,
           transition: dragging ? "none" : "transform 220ms ease",

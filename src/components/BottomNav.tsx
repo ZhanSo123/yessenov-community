@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 import { useI18n } from "@/lib/i18n/useI18n";
@@ -88,6 +88,7 @@ const CommunitiesIcon = ({ active }: { active: boolean }) => (
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const { data: session, status } = useSession();
   const username = session?.user?.username ?? null;
   const { t } = useI18n();
@@ -109,12 +110,17 @@ export default function BottomNav() {
     pathname.startsWith("/profile") ||
     pathname.startsWith("/settings/profile");
 
+  const prefetch = (href: string) => () => {
+    void router.prefetch(href);
+  };
+
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 px-4 pb-[max(env(safe-area-inset-bottom),0.75rem)] pt-3 animate-fade-up">
-      <div className="mx-auto flex w-full max-w-xl items-center justify-between rounded-full border border-[#6495ED]/20 bg-white/90 px-5 py-2.5 shadow-lg shadow-black/5 backdrop-blur">
+      <div className="bubble-surface mx-auto flex w-full max-w-xl items-center justify-between rounded-full px-4 py-2 sm:px-5 sm:py-2.5">
         <Link
           href="/"
           aria-label={t("nav.feed")}
+          onTouchStart={prefetch("/")}
           className={`nav-item ${isHome ? "nav-item-active" : "hover:text-[#6495ED]"}`}
         >
           <HomeIcon active={isHome} />
@@ -122,6 +128,7 @@ export default function BottomNav() {
         <Link
           href="/communities"
           aria-label={t("nav.communities")}
+          onTouchStart={prefetch("/communities")}
           className={`nav-item ${
             isCommunities ? "nav-item-active" : "hover:text-[#6495ED]"
           }`}
@@ -131,6 +138,7 @@ export default function BottomNav() {
         <Link
           href="/messages"
           aria-label={t("nav.messages")}
+          onTouchStart={prefetch("/messages")}
           className={`nav-item relative ${
             isMessages ? "nav-item-active" : "hover:text-[#6495ED]"
           }`}
@@ -156,6 +164,7 @@ export default function BottomNav() {
         <Link
           href="/create"
           aria-label={t("nav.create")}
+          onTouchStart={prefetch("/create")}
           className={`nav-item pressable ${
             isCreate ? "nav-item-active" : "hover:text-[#6495ED]"
           }`}
@@ -165,6 +174,7 @@ export default function BottomNav() {
         <Link
           href="/settings"
           aria-label={t("nav.settings")}
+          onTouchStart={prefetch("/settings")}
           className={`nav-item ${
             isSettings ? "nav-item-active" : "hover:text-[#6495ED]"
           }`}
@@ -188,6 +198,7 @@ export default function BottomNav() {
         <Link
           href={profileHref}
           aria-label={t("nav.profile")}
+          onTouchStart={prefetch(profileHref)}
           className={`nav-item ${isProfile ? "nav-item-active" : "hover:text-[#6495ED]"}`}
         >
           <ProfileIcon active={isProfile} />

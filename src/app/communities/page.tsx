@@ -69,10 +69,10 @@ export default function CommunitiesPage() {
   }, []);
 
   return (
-    <div className="relative min-h-screen bg-white text-slate-900">
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 pb-16 pt-12">
+    <div className="relative min-h-screen min-h-[100svh] bg-[color:var(--background)] text-[color:var(--foreground)]">
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 pb-16 pt-12 sm:px-6">
         <header>
-          <h1 className="text-3xl font-semibold sm:text-4xl">
+          <h1 className="text-2xl font-semibold sm:text-4xl">
             {t("communities.title")}
           </h1>
           <p className="mt-2 text-sm text-slate-600">

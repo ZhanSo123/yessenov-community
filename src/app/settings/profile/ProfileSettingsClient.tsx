@@ -256,10 +256,10 @@ export default function ProfileSettingsClient({
   };
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
-      <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-16">
+    <div className="min-h-screen min-h-[100svh] bg-[color:var(--background)] text-[color:var(--foreground)]">
+      <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-12 sm:px-6 sm:py-16">
         <header>
-          <h1 className="text-3xl font-semibold">
+          <h1 className="text-2xl font-semibold sm:text-3xl">
             {t("settings_profile.title")}
           </h1>
           <p className="mt-2 text-sm text-slate-600">
@@ -269,7 +269,7 @@ export default function ProfileSettingsClient({
 
         <form
           onSubmit={handleSubmit}
-          className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm"
+          className="bubble-surface rounded-2xl p-5 sm:rounded-3xl sm:p-6"
         >
           {error ? (
             <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">

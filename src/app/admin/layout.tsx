@@ -6,9 +6,9 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-white text-slate-900">
-      <header className="border-b border-slate-200 bg-white/80">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-3 px-6 py-4 text-sm font-semibold text-slate-700">
+    <div className="min-h-screen bg-[color:var(--background)] text-[color:var(--foreground)]">
+      <header className="border-b border-[color:var(--border)] bg-[color:var(--surface)] backdrop-blur">
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-3 px-6 py-4 text-sm font-semibold text-[color:var(--foreground)]">
           <Link href="/" className="text-slate-900">
             Threads
           </Link>

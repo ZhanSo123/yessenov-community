@@ -90,6 +90,10 @@ const ru: Record<MessageKey, string> = {
   "settings.actions.google": "Google",
   "settings.language.title": "Язык",
   "settings.language.subtitle": "Выберите язык интерфейса.",
+  "settings.theme.title": "Тема",
+  "settings.theme.subtitle": "Переключайте светлую и тёмную тему.",
+  "settings.theme.light": "Светлая",
+  "settings.theme.dark": "Тёмная",
 
   "create.title": "Создать пост",
   "create.subtitle": "Быстрый черновик для нового треда.",
@@ -348,6 +352,7 @@ const ru: Record<MessageKey, string> = {
   "notifications.like": "{{actor}} лайкнул ваш пост",
   "notifications.follow": "{{actor}} подписался на вас",
   "notifications.mention": "{{actor}} упомянул вас",
+  "notifications.security": "Безопасность: к аккаунту добавлено новое устройство",
   "notifications.default": "Новое уведомление",
   "onboarding.steps.profile": "Профиль",
   "onboarding.steps.faculty": "Факультет",

@@ -34,7 +34,9 @@ export async function POST(
     const result = await service.sendMessage({
       conversationId: id,
       senderId: me.id,
-      content: parsed.data.content,
+      content: parsed.data.content ?? null,
+      e2eCiphertext: parsed.data.e2e?.ciphertext ?? null,
+      e2eTtlSeconds: parsed.data.e2e?.ttlSeconds ?? null,
     });
 
     if (!result.ok) {

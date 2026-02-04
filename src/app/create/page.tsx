@@ -92,13 +92,13 @@ export default function CreatePage() {
   };
 
   return (
-    <div className="relative min-h-screen text-slate-900">
-      <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 pb-16 pt-10">
-        <header className="rounded-3xl p-5 bubble-surface-strong">
+    <div className="relative min-h-screen min-h-[100svh] bg-[color:var(--background)] text-[color:var(--foreground)]">
+      <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pb-16 pt-10 sm:px-6">
+        <header className="rounded-2xl p-4 bubble-surface sm:rounded-3xl sm:p-5 sm:bubble-surface-strong">
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
             {t("common.app_name")}
           </p>
-          <h1 className="mt-2 text-3xl font-semibold sm:text-4xl">
+          <h1 className="mt-2 text-2xl font-semibold sm:text-4xl">
             {t("create.title")}
           </h1>
           <p className="mt-2 text-sm text-slate-600">
@@ -122,7 +122,7 @@ export default function CreatePage() {
         ) : null}
 
         {!loading && !user ? (
-          <div className="rounded-3xl p-5 text-sm text-slate-600 bubble-surface">
+          <div className="rounded-2xl p-4 text-sm text-slate-600 bubble-surface sm:rounded-3xl sm:p-5">
             <p>{t("create.prompt.sign_in")}</p>
             <Link
               href="/"
@@ -135,7 +135,7 @@ export default function CreatePage() {
 
         <form
           onSubmit={handleSubmit}
-          className="rounded-3xl p-6 bubble-surface"
+          className="rounded-2xl p-5 bubble-surface sm:rounded-3xl sm:p-6"
         >
           <label className="text-sm font-semibold text-slate-700">
             {t("create.form.label")}
