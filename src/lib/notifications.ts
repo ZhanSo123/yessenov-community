@@ -1,13 +1,20 @@
 import { NotificationType } from "@prisma/client";
 
-import { prisma } from "@/lib/prisma";
+import { getInfrastructure } from "@/infrastructure";
+import { NotificationRepository } from "@/repositories/notification-repository";
+import { UserRepository } from "@/repositories/user-repository";
+
+const notificationRepo = new NotificationRepository();
+const userRepo = new UserRepository();
+const infra = getInfrastructure();
+const cache = infra.cache;
 
 const dedupeLike = async (input: {
   userId: string;
   actorId: string;
   postId: number;
 }) => {
-  const existing = await prisma.notification.findFirst({
+  const existing = await notificationRepo.findFirst({
     where: {
       userId: input.userId,
       actorId: input.actorId,
@@ -22,7 +29,7 @@ const dedupeLike = async (input: {
 };
 
 const dedupeFollow = async (input: { userId: string; actorId: string }) => {
-  const existing = await prisma.notification.findFirst({
+  const existing = await notificationRepo.findFirst({
     where: {
       userId: input.userId,
       actorId: input.actorId,
@@ -74,7 +81,7 @@ export const createNotification = async (input: CreateNotificationInput) => {
       }
     }
 
-    return await prisma.notification.create({
+    const created = await notificationRepo.create({
       data: {
         userId: input.userId,
         actorId: input.actorId ?? null,
@@ -83,6 +90,17 @@ export const createNotification = async (input: CreateNotificationInput) => {
         replyId: input.replyId ?? null,
       },
     });
+    await cache.del(`notifications:unread:${input.userId}`);
+    await cache.del(`notifications:list:${input.userId}:`);
+    await infra.realtime.emit(`user:${input.userId}`, "notification.created", {
+      id: created.id,
+      type: created.type,
+      createdAt: created.createdAt,
+      actorId: created.actorId,
+      postId: created.postId,
+      replyId: created.replyId,
+    });
+    return created;
   } catch {
     return null;
   }
@@ -114,7 +132,7 @@ export const createMentionNotifications = async (
   }
 
   try {
-    const users = await prisma.user.findMany({
+    const users = await userRepo.findMany({
       where: { usernameLower: { in: Array.from(mentions) } },
       select: { id: true },
     });

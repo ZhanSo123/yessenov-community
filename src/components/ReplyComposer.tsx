@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 
 import { type PostWithMeta } from "@/lib/post-types";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 type ReplyComposerProps = {
   postId: number;
@@ -24,6 +25,7 @@ export default function ReplyComposer({
 }: ReplyComposerProps) {
   const { data: session, status } = useSession();
   const user = session?.user ?? null;
+  const { t } = useI18n();
   const [content, setContent] = useState("");
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
@@ -39,12 +41,12 @@ export default function ReplyComposer({
     }
 
     if (isUnauthed) {
-      setError("Войдите, чтобы отвечать.");
+      setError(t("reply.error.sign_in"));
       return;
     }
 
     if (!content.trim()) {
-      setError("Введите ответ.");
+      setError(t("reply.error.enter_text"));
       return;
     }
 
@@ -79,7 +81,7 @@ export default function ReplyComposer({
       });
 
       if (response.status === 401) {
-        setError("Сессия истекла. Перезайдите.");
+        setError(t("reply.error.session_expired"));
         onFailed?.(tempId);
         return;
       }
@@ -91,25 +93,27 @@ export default function ReplyComposer({
         if (payload?.error === "BANNED") {
           const until = payload.bannedUntil
             ? new Date(payload.bannedUntil).toLocaleDateString()
-            : "неизвестно";
-          const reason = payload.banReason ? ` Причина: ${payload.banReason}` : "";
-          setError(`Вы заблокированы до ${until}.${reason}`);
+            : t("common.unknown");
+          const reason = payload.banReason
+            ? ` ${t("common.reason", { reason: payload.banReason })}`
+            : "";
+          setError(t("reply.error.banned", { until, reason }));
         } else {
-          setError("Доступ запрещён.");
+          setError(t("reply.error.forbidden"));
         }
         onFailed?.(tempId);
         return;
       }
 
       if (!response.ok) {
-        setError("Не удалось отправить ответ.");
+        setError(t("reply.error.send_failed"));
         onFailed?.(tempId);
         return;
       }
 
       const payload = (await response.json()) as { data?: PostWithMeta };
       if (!payload.data) {
-        setError("Не удалось отправить ответ.");
+        setError(t("reply.error.send_failed"));
         onFailed?.(tempId);
         return;
       }
@@ -117,7 +121,7 @@ export default function ReplyComposer({
       onCreated?.(payload.data, tempId);
       setContent("");
     } catch {
-      setError("Не удалось отправить ответ.");
+      setError(t("reply.error.send_failed"));
       onFailed?.(tempId);
     } finally {
       setSending(false);
@@ -128,21 +132,21 @@ export default function ReplyComposer({
   const resolvedRef = inputRef ?? localRef;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+    <div className="rounded-2xl p-3 bubble-surface">
       <textarea
         ref={resolvedRef}
         value={content}
         onChange={(event) => setContent(event.target.value)}
         maxLength={500}
-        className="min-h-[90px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
-        placeholder="Ваш ответ"
+        className="min-h-[90px] w-full rounded-2xl px-3 py-2 text-sm bubble-input"
+        placeholder={t("reply.placeholder")}
         disabled={isLoading || isUnauthed || sending}
       />
       {isLoading ? (
-        <p className="mt-2 text-xs text-slate-500">Загрузка...</p>
+        <p className="mt-2 text-xs text-slate-500">{t("reply.loading")}</p>
       ) : null}
       {isUnauthed ? (
-        <p className="mt-2 text-xs text-slate-500">Войдите, чтобы отвечать.</p>
+        <p className="mt-2 text-xs text-slate-500">{t("reply.sign_in")}</p>
       ) : null}
       {error ? <p className="mt-2 text-xs text-rose-600">{error}</p> : null}
       <div className="mt-2 flex items-center gap-2">
@@ -152,15 +156,15 @@ export default function ReplyComposer({
           disabled={isLoading || isUnauthed || sending}
           className="bubble-btn-primary rounded-full px-3 py-1.5 text-xs font-semibold disabled:opacity-60 pressable"
         >
-          {sending ? "Отправляем..." : "Ответить"}
+          {sending ? t("reply.submitting") : t("reply.submit")}
         </button>
         {onCancel ? (
           <button
             type="button"
             onClick={onCancel}
-            className="text-xs text-slate-500"
+            className="text-xs bubble-chip rounded-full px-3 py-1"
           >
-            Отмена
+            {t("reply.cancel")}
           </button>
         ) : null}
       </div>

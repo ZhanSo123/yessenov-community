@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { requireRoleApi } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { AdminRangeMetricsService } from "@/services/admin-range-metrics-service";
 
 export const runtime = "nodejs";
 
@@ -26,40 +26,13 @@ export async function GET(request: NextRequest) {
       return apiError("BAD_REQUEST", 400);
     }
 
-    const since = new Date(Date.now() - range);
-
-    const [
-      newUsers,
-      newPosts,
-      deletedPosts,
-      openReports,
-      resolvedReports,
-      bans,
-      shadowbans,
-    ] = await Promise.all([
-      prisma.user.count({ where: { createdAt: { gte: since } } }),
-      prisma.post.count({ where: { createdAt: { gte: since } } }),
-      prisma.post.count({ where: { deletedAt: { gte: since } } }),
-      prisma.report.count({ where: { status: "OPEN" } }),
-      prisma.report.count({ where: { resolvedAt: { gte: since } } }),
-      prisma.auditLog.count({
-        where: { action: "USER_BAN", createdAt: { gte: since } },
-      }),
-      prisma.auditLog.count({
-        where: { action: "USER_SHADOWBAN", createdAt: { gte: since } },
-      }),
-    ]);
+    const service = new AdminRangeMetricsService();
+    const metrics = await service.getMetrics(range);
 
     return apiSuccess({
       data: {
         range: searchParams.get("range"),
-        newUsers,
-        newPosts,
-        deletedPosts,
-        openReports,
-        resolvedReports,
-        bans,
-        shadowbans,
+        ...metrics,
       },
     });
   } catch (error) {

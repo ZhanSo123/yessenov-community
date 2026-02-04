@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 
+import { useI18n } from "@/lib/i18n/useI18n";
+
 const iconClass = "h-6 w-6";
 
 const HomeIcon = ({ active }: { active: boolean }) => (
@@ -88,6 +90,7 @@ export default function BottomNav() {
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const username = session?.user?.username ?? null;
+  const { t } = useI18n();
 
   const profileHref =
     status === "authenticated"
@@ -111,14 +114,14 @@ export default function BottomNav() {
       <div className="mx-auto flex w-full max-w-xl items-center justify-between rounded-full border border-[#6495ED]/20 bg-white/90 px-5 py-2.5 shadow-lg shadow-black/5 backdrop-blur">
         <Link
           href="/"
-          aria-label="Лента"
+          aria-label={t("nav.feed")}
           className={`nav-item ${isHome ? "nav-item-active" : "hover:text-[#6495ED]"}`}
         >
           <HomeIcon active={isHome} />
         </Link>
         <Link
           href="/communities"
-          aria-label="Сообщества"
+          aria-label={t("nav.communities")}
           className={`nav-item ${
             isCommunities ? "nav-item-active" : "hover:text-[#6495ED]"
           }`}
@@ -127,7 +130,7 @@ export default function BottomNav() {
         </Link>
         <Link
           href="/messages"
-          aria-label="Сообщения"
+          aria-label={t("nav.messages")}
           className={`nav-item relative ${
             isMessages ? "nav-item-active" : "hover:text-[#6495ED]"
           }`}
@@ -152,7 +155,7 @@ export default function BottomNav() {
         </Link>
         <Link
           href="/create"
-          aria-label="Создать"
+          aria-label={t("nav.create")}
           className={`nav-item pressable ${
             isCreate ? "nav-item-active" : "hover:text-[#6495ED]"
           }`}
@@ -161,7 +164,7 @@ export default function BottomNav() {
         </Link>
         <Link
           href="/settings"
-          aria-label="Настройки"
+          aria-label={t("nav.settings")}
           className={`nav-item ${
             isSettings ? "nav-item-active" : "hover:text-[#6495ED]"
           }`}
@@ -184,7 +187,7 @@ export default function BottomNav() {
         </Link>
         <Link
           href={profileHref}
-          aria-label="Профиль"
+          aria-label={t("nav.profile")}
           className={`nav-item ${isProfile ? "nav-item-active" : "hover:text-[#6495ED]"}`}
         >
           <ProfileIcon active={isProfile} />

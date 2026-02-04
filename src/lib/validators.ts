@@ -444,32 +444,10 @@ export const CommunityCreateSchema = z
     }
   });
 
-export const RegisterSchema = z.object({
-  email: z.string().trim().email(),
-  password: z.string().min(8).max(72),
-  name: z.string().trim().max(80).optional(),
-});
-
 export const OnboardingSchema = z.object({
   username: z.string().trim().min(3).max(20).regex(/^@?[a-z0-9_]+$/),
-  age: z.coerce.number().int().min(13).max(120).optional(),
   faculty: z.string().trim().max(80).optional(),
   course: z.coerce.number().int().min(1).max(6).optional(),
   bio: z.string().trim().max(160).optional(),
   image: z.string().trim().max(2000000).optional(),
-});
-
-export const PhoneStartSchema = z.object({
-  phoneE164: z
-    .string()
-    .trim()
-    .regex(/^\+?[1-9]\d{7,14}$/),
-});
-
-export const PhoneVerifySchema = z.object({
-  phoneE164: z
-    .string()
-    .trim()
-    .regex(/^\+?[1-9]\d{7,14}$/),
-  code: z.string().trim().regex(/^\d{6}$/),
 });

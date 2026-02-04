@@ -2,50 +2,44 @@ import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { requireUserApi } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { InviteAcceptService } from "@/services/invite-accept-service";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   try {
     const inviteOnly = process.env.INVITE_ONLY === "true";
-    if (!inviteOnly) {
-      const user = await requireUserApi();
-      return apiSuccess({ ok: true, userId: user.id });
-    }
 
-    let body: unknown;
-    try {
-      body = await request.json();
-    } catch {
-      return apiError("BAD_REQUEST", 400);
-    }
+    let code: string | null = null;
+    if (inviteOnly) {
+      let body: unknown;
+      try {
+        body = await request.json();
+      } catch {
+        return apiError("BAD_REQUEST", 400);
+      }
 
-    const code = String((body as { code?: string }).code ?? "").trim();
-    if (!code) {
-      return apiError("BAD_REQUEST", 400);
+      code = String((body as { code?: string }).code ?? "").trim();
     }
-
     const allowedCodes = (process.env.INVITE_CODES ?? "")
       .split(",")
       .map((value) => value.trim())
       .filter(Boolean);
 
-    if (!allowedCodes.includes(code)) {
-      return apiError("BAD_REQUEST", 400);
-    }
-
     const user = await requireUserApi();
-    if (user.role === "MOD" || user.role === "ADMIN") {
-      return apiSuccess({ ok: true, userId: user.id });
-    }
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { inviteAcceptedAt: new Date() },
+    const service = new InviteAcceptService();
+    const result = await service.acceptInvite({
+      actor: user,
+      inviteOnly,
+      code,
+      allowedCodes,
     });
 
-    return apiSuccess({ ok: true, userId: user.id });
+    if (!result.ok) {
+      return apiError(result.code, result.status);
+    }
+
+    return apiSuccess(result.payload);
   } catch (error) {
     if (error instanceof Response) {
       return error;

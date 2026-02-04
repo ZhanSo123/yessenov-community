@@ -21,11 +21,23 @@ export default async function ProfileSettingsPage() {
       course: true,
       interests: true,
       hasOnboarded: true,
+      inviteAcceptedAt: true,
+      role: true,
     },
   });
 
   if (!user) {
     redirect("/welcome");
+  }
+
+  const inviteOnly = process.env.INVITE_ONLY === "true";
+  if (
+    inviteOnly &&
+    user.role !== "MOD" &&
+    user.role !== "ADMIN" &&
+    !user.inviteAcceptedAt
+  ) {
+    redirect("/invite");
   }
 
   if (!user.hasOnboarded || !user.username) {

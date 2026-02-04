@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { useI18n } from "@/lib/i18n/useI18n";
+
 type Participant = {
   username: string | null;
   displayName: string | null;
@@ -20,33 +22,6 @@ type ConversationRowProps = {
   unreadCount: number;
 };
 
-const formatRelativeTime = (value: string | null) => {
-  if (!value) {
-    return "";
-  }
-  const createdAt = new Date(value);
-  if (Number.isNaN(createdAt.getTime())) {
-    return "";
-  }
-  const diffMs = Date.now() - createdAt.getTime();
-  if (diffMs < 0) {
-    return "сейчас";
-  }
-  const diffMinutes = Math.max(1, Math.floor(diffMs / (60 * 1000)));
-  if (diffMinutes < 60) {
-    return `${diffMinutes} мин`;
-  }
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) {
-    return `${diffHours} ч`;
-  }
-  if (diffHours < 48) {
-    return "вчера";
-  }
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays} д`;
-};
-
 export default function ConversationRow({
   conversationId,
   participant,
@@ -54,10 +29,40 @@ export default function ConversationRow({
   unreadCount,
 }: ConversationRowProps) {
   const router = useRouter();
-  const displayName = participant?.displayName || participant?.username || "User";
+  const { t } = useI18n();
+  const formatRelativeTime = (value: string | null) => {
+    if (!value) {
+      return "";
+    }
+    const createdAt = new Date(value);
+    if (Number.isNaN(createdAt.getTime())) {
+      return "";
+    }
+    const diffMs = Date.now() - createdAt.getTime();
+    if (diffMs < 0) {
+      return t("dm.conversation.now");
+    }
+    const diffMinutes = Math.max(1, Math.floor(diffMs / (60 * 1000)));
+    if (diffMinutes < 60) {
+      return t("dm.conversation.minutes", { count: diffMinutes });
+    }
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) {
+      return t("dm.conversation.hours", { count: diffHours });
+    }
+    if (diffHours < 48) {
+      return t("dm.conversation.yesterday");
+    }
+    const diffDays = Math.floor(diffHours / 24);
+    return t("dm.conversation.days", { count: diffDays });
+  };
+  const displayName =
+    participant?.displayName || participant?.username || t("common.user");
   const handle = participant?.username ? `@${participant.username}` : "@user";
-  const avatarInitial = (displayName || "U").slice(0, 1).toUpperCase();
-  const preview = lastMessage?.content ?? "Напишите первым";
+  const avatarInitial = (displayName || t("common.user"))
+    .slice(0, 1)
+    .toUpperCase();
+  const preview = lastMessage?.content ?? t("dm.conversation.preview_default");
   const timeLabel = formatRelativeTime(lastMessage?.createdAt ?? null);
   const href = `/messages/${conversationId}`;
 

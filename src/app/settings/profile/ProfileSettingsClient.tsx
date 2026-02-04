@@ -8,6 +8,7 @@ import {
   INTEREST_SUGGESTIONS,
   suggestInterestsFromProfile,
 } from "@/lib/interests";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 type ProfileResponse = {
   data?: {
@@ -51,6 +52,7 @@ export default function ProfileSettingsClient({
   initialInterests,
 }: ProfileSettingsClientProps) {
   const router = useRouter();
+  const { t } = useI18n();
   const [displayName, setDisplayName] = useState(initialDisplayName);
   const [bio, setBio] = useState(initialBio);
   const [faculty, setFaculty] = useState(initialFaculty);
@@ -126,11 +128,11 @@ export default function ProfileSettingsClient({
       setAvatarDirty(true);
     } catch (imageError) {
       if (imageError instanceof Error && imageError.message === "size") {
-        setAvatarError("Файл слишком большой (до 2MB).");
+        setAvatarError(t("settings_profile.error.avatar_size"));
       } else if (imageError instanceof Error && imageError.message === "type") {
-        setAvatarError("Нужна картинка PNG/JPG/WebP.");
+        setAvatarError(t("settings_profile.error.avatar_format"));
       } else {
-        setAvatarError("Не удалось обработать изображение.");
+        setAvatarError(t("settings_profile.error.avatar_process"));
       }
     } finally {
       setAvatarLoading(false);
@@ -156,7 +158,7 @@ export default function ProfileSettingsClient({
       return;
     }
     if (current.length >= 10) {
-      setInterestError("Максимум 10 интересов.");
+      setInterestError(t("settings_profile.error.interests_limit"));
       return;
     }
     const next = [...current, value];
@@ -170,7 +172,7 @@ export default function ProfileSettingsClient({
       course: course ? Number(course) : null,
     });
     if (suggestions.length === 0) {
-      setInterestError("Нет предложений для вашего факультета.");
+      setInterestError(t("settings_profile.error.interests_suggestions"));
       return;
     }
     const merged = Array.from(
@@ -216,38 +218,38 @@ export default function ProfileSettingsClient({
           return;
         }
         if (payload?.error === "CONFLICT") {
-          setError("Имя занято.");
+          setError(t("settings_profile.error.name_taken"));
           return;
         }
         if (payload?.error === "BAD_REQUEST") {
           if (payload?.message === "USERNAME_LOCKED") {
-            setError("Username нельзя изменить.");
+            setError(t("settings_profile.error.username_locked"));
           } else if (payload?.message === "INVALID_IMAGE") {
-            setError("Проверьте изображение аватара.");
+            setError(t("settings_profile.error.avatar_invalid"));
           } else if (payload?.message === "INVALID_INTERESTS") {
-            setError("Слишком много интересов или неверный формат.");
+            setError(t("settings_profile.error.interests_invalid"));
           } else if (payload?.message === "INVALID_COURSE") {
-            setError("Проверьте номер курса.");
+            setError(t("settings_profile.error.course_invalid"));
           } else if (payload?.message === "INVALID_FACULTY") {
-            setError("Проверьте факультет.");
+            setError(t("settings_profile.error.faculty_invalid"));
           } else {
-            setError("Проверьте данные профиля.");
+            setError(t("settings_profile.error.profile_invalid"));
           }
           return;
         }
-        setError("Не удалось сохранить профиль.");
+        setError(t("settings_profile.error.save_failed"));
         return;
       }
 
       if (!payload?.data?.username) {
-        setError("Не удалось сохранить профиль.");
+        setError(t("settings_profile.error.save_failed"));
         return;
       }
 
-      setToast("Профиль обновлён");
+      setToast(t("settings_profile.toast.saved"));
       setAvatarDirty(false);
     } catch {
-      setError("Не удалось сохранить профиль.");
+      setError(t("settings_profile.error.save_failed"));
     } finally {
       setSaving(false);
     }
@@ -257,9 +259,11 @@ export default function ProfileSettingsClient({
     <div className="min-h-screen bg-white text-slate-900">
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-16">
         <header>
-          <h1 className="text-3xl font-semibold">Профиль</h1>
+          <h1 className="text-3xl font-semibold">
+            {t("settings_profile.title")}
+          </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Обновите имя и био. Username изменить нельзя.
+            {t("settings_profile.subtitle")}
           </p>
         </header>
 
@@ -281,18 +285,18 @@ export default function ProfileSettingsClient({
           <div className="mt-4 space-y-4">
             <div>
               <p className="text-xs font-semibold text-slate-600">
-                Аватар
+                {t("settings_profile.avatar.title")}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-4">
                 {avatarPreview ? (
                   <img
                     src={avatarPreview}
-                    alt="Avatar preview"
+                    alt={t("settings_profile.avatar.preview_alt")}
                     className="h-20 w-20 rounded-full object-cover"
                   />
                 ) : (
                   <div className="flex h-20 w-20 items-center justify-center rounded-full bg-slate-200 text-lg font-semibold text-slate-600">
-                    {(displayName || initialUsername || "U")
+                    {(displayName || initialUsername || t("common.user"))
                       .slice(0, 1)
                       .toUpperCase()}
                   </div>
@@ -311,7 +315,9 @@ export default function ProfileSettingsClient({
                     disabled={avatarLoading}
                     className="bubble-btn rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-60 pressable"
                   >
-                    {avatarLoading ? "Обработка..." : "Загрузить фото"}
+                    {avatarLoading
+                      ? t("settings_profile.avatar.processing")
+                      : t("settings_profile.avatar.upload")}
                   </button>
                   {avatarPreview ? (
                     <button
@@ -319,20 +325,20 @@ export default function ProfileSettingsClient({
                       onClick={handleAvatarRemove}
                       className="bubble-btn rounded-full px-4 py-2 text-xs font-semibold pressable"
                     >
-                      Удалить
+                      {t("settings_profile.avatar.delete")}
                     </button>
                   ) : null}
                 </div>
               </div>
               <p className="mt-2 text-[11px] text-slate-400">
-                PNG/JPG/WebP, до 2MB. Фото будет обрезано по центру.
+                {t("settings_profile.avatar.help")}
               </p>
               {avatarError ? (
                 <p className="mt-2 text-xs text-rose-500">{avatarError}</p>
               ) : null}
             </div>
             <label className="block text-xs font-semibold text-slate-600">
-              Username
+              {t("settings_profile.username.label")}
               <input
                 type="text"
                 value={initialUsername}
@@ -340,42 +346,42 @@ export default function ProfileSettingsClient({
                 className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-500"
               />
               <span className="mt-1 block text-[11px] text-slate-400">
-                Имя пользователя нельзя изменить
+                {t("settings_profile.username.locked")}
               </span>
             </label>
             <label className="block text-xs font-semibold text-slate-600">
-              Display name
+              {t("onboarding.fields.display_name")}
               <input
                 type="text"
                 value={displayName}
                 onChange={(event) => setDisplayName(event.target.value)}
                 className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                placeholder="Как вас видно в ленте"
+                placeholder={t("onboarding.placeholders.display_name")}
                 maxLength={40}
               />
             </label>
             <label className="block text-xs font-semibold text-slate-600">
-              Bio
+              {t("onboarding.fields.bio")}
               <textarea
                 value={bio}
                 onChange={(event) => setBio(event.target.value)}
                 maxLength={160}
                 className="mt-2 min-h-[120px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                placeholder="Пара строк о себе"
+                placeholder={t("onboarding.placeholders.bio")}
               />
               <span className="mt-1 block text-[11px] text-slate-400">
                 {bio.length} / 160
               </span>
             </label>
             <label className="block text-xs font-semibold text-slate-600">
-              Факультет
+              {t("onboarding.fields.faculty")}
               <input
                 type="text"
                 value={faculty}
                 onChange={(event) => setFaculty(event.target.value)}
                 list="faculty-options"
                 className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                placeholder="Например: FIT, ENG"
+                placeholder={t("onboarding.placeholders.faculty")}
                 maxLength={80}
               />
             </label>
@@ -385,22 +391,22 @@ export default function ProfileSettingsClient({
               ))}
             </datalist>
             <label className="block text-xs font-semibold text-slate-600">
-              Курс
+              {t("onboarding.fields.course")}
               <select
                 value={course}
                 onChange={(event) => setCourse(event.target.value)}
                 className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
               >
-                <option value="">Не выбран</option>
+                <option value="">{t("onboarding.course.none")}</option>
                 {[1, 2, 3, 4, 5, 6].map((value) => (
                   <option key={value} value={value}>
-                    {value} курс
+                    {t("onboarding.course.value", { value })}
                   </option>
                 ))}
               </select>
             </label>
             <label className="block text-xs font-semibold text-slate-600">
-              Интересы
+              {t("onboarding.fields.interests")}
               <input
                 type="text"
                 value={interests}
@@ -409,10 +415,10 @@ export default function ProfileSettingsClient({
                   setInterestError("");
                 }}
                 className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                placeholder="AI, спорт, стартапы"
+                placeholder={t("onboarding.placeholders.interests")}
               />
               <span className="mt-1 block text-[11px] text-slate-400">
-                До 10 интересов, через запятую.
+                {t("onboarding.interests_hint")}
               </span>
             </label>
             <button
@@ -420,7 +426,7 @@ export default function ProfileSettingsClient({
               onClick={applySuggestedInterests}
               className="bubble-btn w-fit rounded-full px-4 py-1 text-xs font-semibold pressable"
             >
-              Подсказать по профилю
+              {t("settings_profile.interests.suggest")}
             </button>
             <div className="flex flex-wrap gap-2">
               {INTEREST_SUGGESTIONS.map((item) => {
@@ -451,7 +457,9 @@ export default function ProfileSettingsClient({
               disabled={saving}
               className="bubble-btn-primary w-full rounded-full px-5 py-2 text-sm font-semibold disabled:opacity-60 pressable"
             >
-              {saving ? "Сохраняем..." : "Сохранить"}
+              {saving
+                ? t("settings_profile.actions.saving")
+                : t("settings_profile.actions.save")}
             </button>
           </div>
         </form>

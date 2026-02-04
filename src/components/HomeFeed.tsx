@@ -6,9 +6,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 
 import CommunitySwitcher from "@/components/CommunitySwitcher";
+import CreatePostForm from "@/components/CreatePostForm";
 import PostCard from "@/components/PostCard";
 import ReplyComposer from "@/components/ReplyComposer";
 import { type PostWithMeta } from "@/lib/post-types";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 type FeedResponse = {
   data?: PostWithMeta[];
@@ -52,6 +54,7 @@ export default function HomeFeed() {
   const initialMode = tabParam === "following" ? "following" : "for-you";
   const { data: session } = useSession();
   const currentUserId = session?.user?.id ?? null;
+  const { t } = useI18n();
   useEffect(() => {
     if (
       process.env.NODE_ENV === "development" &&
@@ -87,6 +90,11 @@ export default function HomeFeed() {
     Record<string, { replyCount: number; updatedAt: number }>
   >({});
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const lastFeedKeyRef = useRef<string | null>(null);
+  const interestOptionsKey = useMemo(
+    () => interestOptions.join(","),
+    [interestOptions]
+  );
 
   const limitConsecutiveAuthors = (
     items: PostWithMeta[],
@@ -154,10 +162,10 @@ export default function HomeFeed() {
     yesterday.setDate(now.getDate() - 1);
     const lastKey = lastDate.toDateString();
     if (lastKey === todayKey) {
-      return "Ты писал здесь сегодня";
+      return t("feed.last_post_today");
     }
     if (lastKey === yesterday.toDateString()) {
-      return "Ты был здесь вчера";
+      return t("feed.last_post_yesterday");
     }
     return "";
   }, [currentUserId, posts]);
@@ -244,9 +252,9 @@ export default function HomeFeed() {
 
   const cadenceHint = useMemo(() => {
     return Math.random() > 0.5
-      ? "Здесь обычно пишут вечером"
-      : "Новые мысли появляются каждый день";
-  }, []);
+      ? t("feed.greeting_evening")
+      : t("feed.greeting_daily");
+  }, [t]);
 
   const displayPosts = useMemo(
     () => limitConsecutiveAuthors(posts, 2),
@@ -376,11 +384,11 @@ export default function HomeFeed() {
       const fetchFeed = async (url: string) => {
         const response = await fetch(url, { credentials: "include" });
         if (response.status === 401) {
-          setError("Войдите, чтобы увидеть ленту подписок.");
+          setError(t("feed.error.following_login"));
           return null;
         }
         if (!response.ok) {
-          throw new Error("Не удалось загрузить ленту");
+          throw new Error(t("feed.error.load_feed"));
         }
         const payload = (await response.json()) as FeedResponse;
         return payload;
@@ -431,7 +439,7 @@ export default function HomeFeed() {
       setNextCursor(payload.nextCursor ?? null);
     } catch (fetchError) {
       setError(
-        fetchError instanceof Error ? fetchError.message : "Ошибка загрузки"
+        fetchError instanceof Error ? fetchError.message : t("common.error_load")
       );
     } finally {
       append ? setLoadingMore(false) : setLoading(false);
@@ -505,7 +513,7 @@ export default function HomeFeed() {
           credentials: "include",
         });
         if (!response.ok) {
-          throw new Error("Не удалось загрузить рекомендации");
+          throw new Error(t("feed.error.load_recommendations"));
         }
         const payload = (await response.json()) as {
           data?: RecommendedCommunity[];
@@ -518,7 +526,7 @@ export default function HomeFeed() {
           setRecommendedCommunitiesError(
             fetchError instanceof Error
               ? fetchError.message
-              : "Ошибка загрузки"
+              : t("common.error_load")
           );
         }
       }
@@ -546,7 +554,7 @@ export default function HomeFeed() {
           credentials: "include",
         });
         if (!response.ok) {
-          throw new Error("Не удалось загрузить посты");
+          throw new Error(t("feed.error.load_posts"));
         }
         const payload = (await response.json()) as FeedResponse;
         const incoming = (payload.data ?? []).map((post) => ({
@@ -559,7 +567,9 @@ export default function HomeFeed() {
       } catch (fetchError) {
         if (active) {
           setRecommendedPostsError(
-            fetchError instanceof Error ? fetchError.message : "Ошибка загрузки"
+            fetchError instanceof Error
+              ? fetchError.message
+              : t("common.error_load")
           );
         }
       }
@@ -571,9 +581,15 @@ export default function HomeFeed() {
   }, [currentUserId, interestOptions]);
 
   useEffect(() => {
+    const mixKey = mix && !interest ? interestOptionsKey : "";
+    const feedKey = `${mode}|${interest}|${mix ? mixKey : "no-mix"}`;
+    if (lastFeedKeyRef.current === feedKey) {
+      return;
+    }
+    lastFeedKeyRef.current = feedKey;
     setNextCursor(null);
     loadFeed(mode);
-  }, [mode, interest, mix, interestOptions.length]);
+  }, [mode, interest, mix, interestOptionsKey]);
 
   const setFeedMode = (next: "for-you" | "following") => {
     if (next === mode) {
@@ -700,7 +716,7 @@ export default function HomeFeed() {
       });
 
       if (response.status === 401) {
-        setActionMessage("Войдите, чтобы ставить лайки.");
+        setActionMessage(t("feed.error.like_requires_login"));
         throw new Error("unauthorized");
       }
 
@@ -711,25 +727,27 @@ export default function HomeFeed() {
         if (payload?.error === "BANNED") {
           const until = payload.bannedUntil
             ? new Date(payload.bannedUntil).toLocaleDateString()
-            : "неизвестно";
-          const reason = payload.banReason ? ` Причина: ${payload.banReason}` : "";
-          setActionMessage(`Вы заблокированы до ${until}.${reason}`);
+            : t("common.unknown");
+          const reason = payload.banReason
+            ? ` ${t("common.reason", { reason: payload.banReason })}`
+            : "";
+          setActionMessage(t("feed.error.banned", { until, reason }));
         } else if (payload?.error === "ONBOARDING_REQUIRED") {
           router.push("/onboarding");
           throw new Error("onboarding");
         } else {
-          setActionMessage("Доступ запрещён.");
+          setActionMessage(t("feed.error.forbidden"));
         }
         throw new Error("forbidden");
       }
 
       if (!response.ok) {
-        throw new Error("Не удалось обновить лайк");
+        throw new Error(t("feed.error.like_failed"));
       }
 
       const payload = (await response.json()) as LikeToggleResponse;
       if (!payload.data) {
-        throw new Error("Не удалось обновить лайк");
+        throw new Error(t("feed.error.like_failed"));
       }
 
       setPosts((current) =>
@@ -781,6 +799,31 @@ export default function HomeFeed() {
     setReplyingId(null);
   };
 
+  const handleOptimisticPost = (post: PostWithMeta) => {
+    setPosts((current) => [post, ...current.filter((item) => item.id !== post.id)]);
+  };
+
+  const handleCreatedPost = (post: PostWithMeta, tempId?: string) => {
+    setPosts((current) => {
+      if (!tempId) {
+        return [post, ...current];
+      }
+      let replaced = false;
+      const next = current.map((item) => {
+        if (item.id === tempId) {
+          replaced = true;
+          return post;
+        }
+        return item;
+      });
+      return replaced ? next : [post, ...next];
+    });
+  };
+
+  const handleFailedPost = (tempId: string) => {
+    setPosts((current) => current.filter((item) => item.id !== tempId));
+  };
+
   const canLoadMore = useMemo(
     () => Boolean(nextCursor) && !loadingMore,
     [nextCursor, loadingMore]
@@ -788,29 +831,29 @@ export default function HomeFeed() {
 
   return (
     <div
-      className="relative min-h-screen bg-white text-slate-900"
+      className="relative min-h-screen text-slate-900"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <main className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-6 pb-16 pt-10">
-        <header className="flex flex-col gap-3 animate-fade-up">
-          <div className="flex items-start justify-between gap-4">
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 pb-16 pt-10">
+        <header className="rounded-3xl p-5 bubble-surface-strong animate-fade-up">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-                Threads Feed
+                {t("common.app_name")}
               </p>
               <h1 className="text-3xl font-semibold sm:text-4xl">
-                Что нового в сообществе
+                {t("feed.title")}
               </h1>
               <p className="text-sm text-slate-600">
-                Лента коротких постов и обсуждений.
+                {t("feed.subtitle")}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <Link
                 href="/search"
-                aria-label="Поиск"
-                className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-slate-500 transition hover:border-[#6495ED]/40 hover:text-[#6495ED]"
+                aria-label={t("feed.search_aria")}
+                className="bubble-icon-btn flex h-10 w-10 items-center justify-center rounded-2xl pressable"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -826,8 +869,8 @@ export default function HomeFeed() {
               </Link>
               <Link
                 href="/notifications"
-                aria-label="Уведомления"
-                className="relative flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-slate-500 transition hover:border-[#6495ED]/40 hover:text-[#6495ED]"
+                aria-label={t("feed.notifications_aria")}
+                className="bubble-icon-btn relative flex h-10 w-10 items-center justify-center rounded-2xl pressable"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -848,23 +891,55 @@ export default function HomeFeed() {
                   />
                 </svg>
                 {unreadCount > 0 ? (
-                  <span className="absolute -right-1 -top-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[#6495ED] px-1 text-[10px] font-semibold text-white shadow animate-pop">
+                  <span className="absolute -right-1 -top-1 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-[#4a9bff] px-1 text-[10px] font-semibold text-white shadow animate-pop">
                     {unreadCount > 99 ? "99+" : unreadCount}
                   </span>
                 ) : null}
               </Link>
             </div>
           </div>
+          <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+            <button
+              type="button"
+              onClick={() => setFeedMode("for-you")}
+              className={`rounded-full px-4 py-2 font-semibold transition ${
+                mode === "for-you" ? "bubble-chip-active" : "bubble-chip"
+              }`}
+            >
+              {t("feed.mode.for_you")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setFeedMode("following")}
+              className={`rounded-full px-4 py-2 font-semibold transition ${
+                mode === "following" ? "bubble-chip-active" : "bubble-chip"
+              }`}
+            >
+              {t("feed.mode.following")}
+            </button>
+            {lastPostLabel ? (
+              <span className="rounded-full px-3 py-2 bubble-chip">
+                {lastPostLabel}
+              </span>
+            ) : null}
+            {hasParticipation ? (
+              <span className="rounded-full px-3 py-2 bubble-chip">
+                {t("feed.participated")}
+              </span>
+            ) : null}
+            {hasRecentPosts ? (
+              <span className="rounded-full px-3 py-2 bubble-chip">
+                {cadenceHint}
+              </span>
+            ) : null}
+          </div>
         </header>
-        {lastPostLabel ? (
-          <p className="text-xs text-slate-500">{lastPostLabel}</p>
-        ) : null}
-        {hasParticipation ? (
-          <p className="text-xs text-slate-500">Ты участвовал в обсуждении</p>
-        ) : null}
-        {hasRecentPosts ? (
-          <p className="text-xs text-slate-500">{cadenceHint}</p>
-        ) : null}
+
+        <CreatePostForm
+          onCreated={handleCreatedPost}
+          onOptimistic={handleOptimisticPost}
+          onFailed={handleFailedPost}
+        />
 
         <CommunitySwitcher />
 
@@ -872,23 +947,21 @@ export default function HomeFeed() {
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold text-slate-500">
-                Режим:
+                {t("feed.mode.label")}
               </span>
               <button
                 type="button"
                 onClick={toggleMix}
                 className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                  mix
-                    ? "bg-[#6495ED]/15 text-[#6495ED]"
-                    : "bg-slate-100 text-slate-600 hover:bg-[#6495ED]/10 hover:text-[#6495ED]"
+                  mix ? "bubble-chip-active" : "bubble-chip"
                 }`}
               >
-                Смешанная лента
+                {t("feed.mode.mixed")}
               </button>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-semibold text-slate-500">
-                По интересам:
+                {t("feed.mode.interests")}
               </span>
             {interestOptions.map((item) => {
               const active = item.toLowerCase() === interest.toLowerCase();
@@ -898,9 +971,7 @@ export default function HomeFeed() {
                   type="button"
                   onClick={() => setFeedInterest(active ? "" : item)}
                   className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                    active
-                      ? "bg-[#6495ED]/15 text-[#6495ED]"
-                      : "bg-slate-100 text-slate-600 hover:bg-[#6495ED]/10 hover:text-[#6495ED]"
+                    active ? "bubble-chip-active" : "bubble-chip"
                   }`}
                 >
                   {item}
@@ -911,9 +982,9 @@ export default function HomeFeed() {
               <button
                 type="button"
                 onClick={() => setFeedInterest("")}
-                className="rounded-full px-3 py-1 text-xs text-slate-500 hover:text-slate-900"
+                className="rounded-full px-3 py-1 text-xs bubble-chip"
               >
-                Очистить
+                {t("feed.clear")}
               </button>
             ) : null}
             </div>
@@ -925,16 +996,16 @@ export default function HomeFeed() {
         ) : null}
 
         {recommendedCommunities.length > 0 ? (
-          <section className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
+          <section className="rounded-3xl p-4 bubble-surface">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-900">
-                Рекомендуемые сообщества
+                {t("feed.recommended_communities")}
               </h2>
               <Link
                 href="/communities"
                 className="text-xs text-slate-500 hover:text-slate-900"
               >
-                Все →
+                {t("feed.recommended_all")}
               </Link>
             </div>
             <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
@@ -945,10 +1016,8 @@ export default function HomeFeed() {
                   <Link
                     key={community.id}
                     href={`/c/${community.slug}`}
-                    className={`shrink-0 rounded-2xl border px-3 py-2 text-xs transition ${
-                      isClosed
-                        ? "border-[#6495ED]/30 bg-[#6495ED]/10 text-[#6495ED]"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-[#6495ED]/40 hover:text-[#6495ED]"
+                    className={`shrink-0 rounded-full px-3 py-2 text-xs transition ${
+                      isClosed ? "bubble-chip-active" : "bubble-chip"
                     }`}
                   >
                     <span className="font-semibold">{community.title}</span>
@@ -970,11 +1039,11 @@ export default function HomeFeed() {
           <section className="space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-900">
-                Рекомендуемые посты
+                {t("feed.recommended_posts")}
               </h2>
               {interestOptions.length > 0 ? (
                 <span className="text-xs text-slate-500">
-                  по интересам
+                  {t("feed.recommended_posts_interest")}
                 </span>
               ) : null}
             </div>
@@ -1006,7 +1075,7 @@ export default function HomeFeed() {
             {Array.from({ length: 3 }).map((_, index) => (
               <div
                 key={`feed-skeleton-${index}`}
-                className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm animate-pulse"
+                className="rounded-3xl p-5 bubble-surface animate-pulse"
               >
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-full bg-slate-200" />
@@ -1026,7 +1095,7 @@ export default function HomeFeed() {
 
         {!loading && !error && posts.length === 0 ? (
           <p className="text-sm text-slate-500">
-            Пока пусто. Создай первый пост через кнопку “+”.
+            {t("feed.empty")}
           </p>
         ) : null}
 
@@ -1081,9 +1150,9 @@ export default function HomeFeed() {
             type="button"
             onClick={() => loadFeed(mode, { append: true })}
             disabled={!canLoadMore}
-            className="self-center rounded-full border border-slate-200 bg-white/80 px-5 py-2 text-sm text-slate-600 transition hover:text-slate-900 disabled:opacity-60"
+            className="self-center rounded-full px-5 py-2 text-sm font-semibold bubble-btn disabled:opacity-60"
           >
-            {loadingMore ? "Загружаем..." : "Load more"}
+            {loadingMore ? t("feed.loading_more") : t("feed.load_more")}
           </button>
         ) : null}
       </main>

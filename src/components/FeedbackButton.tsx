@@ -4,9 +4,12 @@ import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 
+import { useI18n } from "@/lib/i18n/useI18n";
+
 export default function FeedbackButton() {
   const { data: session, status } = useSession();
   const pathname = usePathname();
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -21,7 +24,7 @@ export default function FeedbackButton() {
     setError("");
 
     if (!message.trim()) {
-      setError("Напишите пару слов.");
+      setError(t("feedback.error.empty"));
       return;
     }
 
@@ -40,7 +43,7 @@ export default function FeedbackButton() {
       });
 
       if (!response.ok) {
-        setError("Не удалось отправить. Попробуйте позже.");
+        setError(t("feedback.error.send_failed"));
         setSending(false);
         return;
       }
@@ -48,7 +51,7 @@ export default function FeedbackButton() {
       setSent(true);
       setMessage("");
     } catch {
-      setError("Не удалось отправить. Попробуйте позже.");
+      setError(t("feedback.error.send_failed"));
     } finally {
       setSending(false);
     }
@@ -73,7 +76,7 @@ export default function FeedbackButton() {
         }}
         className="bubble-btn fixed bottom-5 right-5 z-40 rounded-full px-4 py-2 text-xs font-semibold pressable"
       >
-        Оставить фидбек
+        {t("feedback.title")}
       </button>
 
       {open ? (
@@ -82,10 +85,10 @@ export default function FeedbackButton() {
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-base font-semibold text-slate-900">
-                  Что было неудобно?
+                  {t("feedback.question")}
                 </h2>
                 <p className="mt-1 text-xs text-slate-500">
-                  Мы читаем всё, спасибо.
+                  {t("feedback.subtitle")}
                 </p>
               </div>
               <button
@@ -93,7 +96,7 @@ export default function FeedbackButton() {
                 onClick={closeModal}
                 className="text-xs text-slate-500 hover:text-slate-900"
               >
-                Закрыть
+                {t("feedback.close")}
               </button>
             </div>
             <textarea
@@ -101,7 +104,7 @@ export default function FeedbackButton() {
               onChange={(event) => setMessage(event.target.value)}
               maxLength={1000}
               className="mt-4 min-h-[140px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
-              placeholder="Опишите проблему или идею..."
+              placeholder={t("feedback.placeholder")}
               disabled={sending}
             />
             {error ? (
@@ -109,7 +112,7 @@ export default function FeedbackButton() {
             ) : null}
             {sent ? (
               <p className="mt-2 text-xs text-emerald-600">
-                Отправлено. Спасибо!
+                {t("feedback.sent")}
               </p>
             ) : null}
             <div className="mt-4 flex items-center justify-between">
@@ -122,7 +125,7 @@ export default function FeedbackButton() {
                 disabled={sending}
                 className="bubble-btn-primary rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-60 pressable"
               >
-                {sending ? "Отправляем..." : "Отправить"}
+                {sending ? t("feedback.sending") : t("feedback.send")}
               </button>
             </div>
           </div>

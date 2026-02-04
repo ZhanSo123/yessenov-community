@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { DevHealthService } from "@/services/dev-health-service";
 
 export const runtime = "nodejs";
 
@@ -7,27 +7,8 @@ export async function GET() {
     return new Response("Not found", { status: 404 });
   }
 
-  let prismaStatus: "ok" | "fail" = "ok";
-  let dbStatus: "ok" | "fail" = "ok";
+  const service = new DevHealthService();
+  const status = await service.check();
 
-  try {
-    await prisma.$connect();
-  } catch {
-    prismaStatus = "fail";
-  }
-
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-  } catch {
-    dbStatus = "fail";
-  }
-
-  return Response.json({
-    prisma: prismaStatus,
-    db: dbStatus,
-    env: {
-      googleClientId: Boolean(process.env.GOOGLE_CLIENT_ID),
-      nextauthUrl: Boolean(process.env.NEXTAUTH_URL),
-    },
-  });
+  return Response.json(status);
 }

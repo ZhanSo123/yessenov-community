@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSession } from "next-auth/react";
 
 import { type PostWithMeta } from "@/lib/post-types";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 type CreatePostFormProps = {
   onCreated: (post: PostWithMeta, tempId?: string) => void;
@@ -18,6 +19,7 @@ export default function CreatePostForm({
 }: CreatePostFormProps) {
   const { data: session, status } = useSession();
   const user = session?.user ?? null;
+  const { t } = useI18n();
   const [content, setContent] = useState("");
   const [error, setError] = useState("");
   const [posting, setPosting] = useState(false);
@@ -38,12 +40,12 @@ export default function CreatePostForm({
     }
 
     if (isUnauthed) {
-      setError("Войдите, чтобы публиковать посты.");
+      setError(t("create_form.error.sign_in"));
       return;
     }
 
     if (!content.trim()) {
-      setError("Напишите текст поста.");
+      setError(t("create_form.error.enter_text"));
       return;
     }
 
@@ -82,7 +84,7 @@ export default function CreatePostForm({
       });
 
       if (response.status === 401) {
-        setError("Сессия истекла. Перезайдите.");
+        setError(t("create_form.error.session_expired"));
         onFailed?.(tempId);
         return;
       }
@@ -94,25 +96,27 @@ export default function CreatePostForm({
         if (payload?.error === "BANNED") {
           const until = payload.bannedUntil
             ? new Date(payload.bannedUntil).toLocaleDateString()
-            : "неизвестно";
-          const reason = payload.banReason ? ` Причина: ${payload.banReason}` : "";
-          setError(`Вы заблокированы до ${until}.${reason}`);
+            : t("common.unknown");
+          const reason = payload.banReason
+            ? ` ${t("common.reason", { reason: payload.banReason })}`
+            : "";
+          setError(t("create_form.error.banned", { until, reason }));
         } else {
-          setError("Доступ запрещён.");
+          setError(t("create_form.error.forbidden"));
         }
         onFailed?.(tempId);
         return;
       }
 
       if (!response.ok) {
-        setError("Не удалось опубликовать пост.");
+        setError(t("create_form.error.send_failed"));
         onFailed?.(tempId);
         return;
       }
 
       const payload = (await response.json()) as { data?: PostWithMeta };
       if (!payload.data) {
-        setError("Не удалось опубликовать пост.");
+        setError(t("create_form.error.send_failed"));
         onFailed?.(tempId);
         return;
       }
@@ -120,7 +124,7 @@ export default function CreatePostForm({
       onCreated(payload.data, tempId);
       setContent("");
     } catch {
-      setError("Не удалось опубликовать пост.");
+      setError(t("create_form.error.send_failed"));
       onFailed?.(tempId);
     } finally {
       setPosting(false);
@@ -128,12 +132,16 @@ export default function CreatePostForm({
   };
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-slate-700">Новый пост</h2>
+    <section className="rounded-3xl p-5 bubble-surface">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-slate-700">
+          {t("create_form.title")}
+        </h2>
         {user ? (
           <span className="text-xs text-slate-500">
-            Автор: {user.displayName ?? user.name ?? user.email ?? "Вы"}
+            {t("create_form.author", {
+              name: user.displayName ?? user.name ?? user.email ?? t("common.user"),
+            })}
           </span>
         ) : null}
       </div>
@@ -141,24 +149,28 @@ export default function CreatePostForm({
         value={content}
         onChange={(event) => setContent(event.target.value)}
         maxLength={500}
-        className="mt-3 min-h-[120px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
-        placeholder="Что нового?"
+        className="mt-3 min-h-[120px] w-full rounded-2xl px-4 py-3 text-sm bubble-input"
+        placeholder={t("create_form.placeholder")}
         disabled={isLoading || isUnauthed || posting}
       />
       {isLoading ? (
-        <p className="mt-2 text-xs text-slate-500">Загрузка...</p>
+        <p className="mt-2 text-xs text-slate-500">{t("create_form.loading")}</p>
       ) : null}
       {isUnauthed ? (
-        <p className="mt-2 text-xs text-slate-500">Войдите, чтобы писать.</p>
+        <p className="mt-2 text-xs text-slate-500">{t("create_form.sign_in")}</p>
       ) : null}
       {error ? <p className="mt-2 text-xs text-rose-600">{error}</p> : null}
       <button
         type="button"
         onClick={handleSubmit}
         disabled={isLoading || isUnauthed || posting}
-        className="mt-3 inline-flex items-center rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+        className="mt-4 inline-flex items-center rounded-full px-5 py-2 text-sm font-semibold bubble-btn-primary disabled:opacity-60"
       >
-        {isLoading ? "Загрузка..." : posting ? "Публикуем..." : "Post"}
+        {isLoading
+          ? t("create_form.loading")
+          : posting
+            ? t("create_form.submitting")
+            : t("create_form.submit")}
       </button>
     </section>
   );

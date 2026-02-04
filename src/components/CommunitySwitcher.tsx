@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
+import { useI18n } from "@/lib/i18n/useI18n";
+
 type Community = {
   id: number;
   slug: string;
@@ -17,16 +19,16 @@ type CommunityResponse = {
   data?: Community[];
 };
 
-const typeLabel = (community: Community) => {
-  if (community.type === "FACULTY") return "Факультет";
-  if (community.type === "COURSE") return "Курс";
-  if (community.type === "TEACHERS") return "Преподаватели";
-  return "Открытое";
-};
-
 export default function CommunitySwitcher() {
+  const { t } = useI18n();
   const [communities, setCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState(true);
+  const typeLabel = (community: Community) => {
+    if (community.type === "FACULTY") return t("community.type.faculty");
+    if (community.type === "COURSE") return t("community.type.course");
+    if (community.type === "TEACHERS") return t("community.type.teachers");
+    return t("community.type.open");
+  };
 
   useEffect(() => {
     let active = true;
@@ -74,14 +76,16 @@ export default function CommunitySwitcher() {
   }
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white/90 p-4 shadow-sm">
+    <section className="rounded-3xl p-4 bubble-surface">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-slate-900">Сообщества</h2>
+        <h2 className="text-sm font-semibold text-slate-900">
+          {t("community.switcher.title")}
+        </h2>
         <Link
           href="/communities"
           className="text-xs text-slate-500 transition hover:text-slate-900"
         >
-          Все →
+          {t("community.switcher.all")}
         </Link>
       </div>
       <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
@@ -89,7 +93,7 @@ export default function CommunitySwitcher() {
           <Link
             key={community.id}
             href={`/c/${community.slug}`}
-            className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700 transition hover:border-[#6495ED]/40 hover:text-[#6495ED]"
+            className="shrink-0 rounded-full px-3 py-2 text-xs transition bubble-chip hover:text-slate-900"
           >
             <span className="font-semibold">{community.title}</span>
             <span className="ml-1 text-[10px] text-slate-400">

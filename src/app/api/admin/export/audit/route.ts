@@ -2,8 +2,7 @@ import { NextRequest } from "next/server";
 
 import { apiError } from "@/lib/api-errors";
 import { requireRoleApi } from "@/lib/auth";
-import { toCsv } from "@/lib/csv";
-import { prisma } from "@/lib/prisma";
+import { AdminAuditExportService } from "@/services/admin-audit-export-service";
 
 export const runtime = "nodejs";
 
@@ -27,41 +26,8 @@ export async function GET(request: NextRequest) {
       return apiError("BAD_REQUEST", 400);
     }
 
-    const since = new Date(Date.now() - range);
-
-    const logs = await prisma.auditLog.findMany({
-      where: { createdAt: { gte: since } },
-      orderBy: [{ createdAt: "desc" }],
-      include: {
-        actor: { select: { email: true } },
-      },
-    });
-
-    const headers = [
-      "id",
-      "actorEmail",
-      "action",
-      "targetType",
-      "targetId",
-      "createdAt",
-      "ip",
-      "userAgent",
-      "requestId",
-    ];
-
-    const rows = logs.map((log) => [
-      log.id,
-      log.actor.email,
-      log.action,
-      log.targetType,
-      log.targetId,
-      log.createdAt.toISOString(),
-      log.ip ?? "",
-      log.userAgent ?? "",
-      log.requestId ?? "",
-    ]);
-
-    const csv = toCsv(headers, rows);
+    const service = new AdminAuditExportService();
+    const csv = await service.exportRange(range);
     return new Response(csv, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",

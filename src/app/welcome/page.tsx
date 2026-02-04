@@ -9,9 +9,11 @@ import { useSearchParams } from "next/navigation";
 import { getProviders, signIn } from "next-auth/react";
 
 import DevLoginButton from "@/components/DevLoginButton";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 
 export default function WelcomePage() {
+  const { t } = useI18n();
   const [hasGoogleProvider, setHasGoogleProvider] = useState(true);
   const [providersLoaded, setProvidersLoaded] = useState(false);
   const searchParams = useSearchParams();
@@ -44,41 +46,57 @@ export default function WelcomePage() {
   const googleDisabled = providersLoaded && !hasGoogleProvider;
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-6 py-16">
-        <section className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
+    <div className="min-h-screen text-slate-900">
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-12 px-6 pb-20 pt-16">
+        <section className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-xs uppercase tracking-[0.3em] text-slate-500 shadow-sm">
-              Yessenov Community
+            <div className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs uppercase tracking-[0.28em] text-slate-500 bubble-chip">
+              {t("common.app_name")}
             </div>
             <h1 className="text-4xl font-semibold leading-tight sm:text-5xl">
-              Добро пожаловать в студенческую соцсеть.
+              {t("welcome.title")}
             </h1>
             <p className="max-w-xl text-sm text-slate-600">
-              Делитесь идеями, ищите команду и следите за жизнью сообщества.
+              {t("welcome.subtitle")}
             </p>
+            <div className="flex flex-wrap gap-2 text-xs text-slate-500">
+              <span className="rounded-full px-3 py-1 bubble-chip">
+                {t("welcome.highlight.feed")}
+              </span>
+              <span className="rounded-full px-3 py-1 bubble-chip">
+                {t("welcome.highlight.communities")}
+              </span>
+              <span className="rounded-full px-3 py-1 bubble-chip">
+                {t("welcome.highlight.messages")}
+              </span>
+            </div>
           </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white/85 p-6 shadow-lg">
+          <div className="rounded-3xl p-6 bubble-surface-strong">
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold">Вход в сообщество</h2>
+              <div>
+                <h2 className="text-xl font-semibold">{t("welcome.card.title")}</h2>
+                <p className="mt-1 text-xs text-slate-500">
+                  {t("welcome.card.subtitle")}
+                </p>
+              </div>
               <div className="grid gap-3">
                 <Link
                   href="/auth/login"
                   className="bubble-btn-primary rounded-full px-5 py-3 text-center text-sm font-semibold pressable"
                 >
-                  Войти
+                  {t("welcome.actions.sign_in")}
                 </Link>
                 <Link
                   href="/auth/register"
                   className="bubble-btn rounded-full px-5 py-3 text-center text-sm font-semibold pressable"
                 >
-                  Создать аккаунт
+                  {t("welcome.actions.register")}
                 </Link>
               </div>
               <div className="flex items-center gap-3 text-xs text-slate-400">
                 <span className="h-px flex-1 bg-slate-200" />
-                или
+                {t("common.or")}
                 <span className="h-px flex-1 bg-slate-200" />
               </div>
               <button
@@ -87,21 +105,21 @@ export default function WelcomePage() {
                 disabled={!providersLoaded || googleDisabled}
                 className="bubble-btn w-full rounded-full px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 pressable"
               >
-                Войти через Google
+                {t("welcome.actions.google")}
               </button>
               <DevLoginButton />
               {error ? (
                 <p className="text-xs text-rose-500">
-                  Ошибка входа: {error}
+                  {t("welcome.error", { error })}
                 </p>
               ) : null}
               {googleDisabled ? (
                 <p className="text-xs text-slate-500">
-                  Google OAuth не настроен. Проверьте ключи в окружении.
+                  {t("welcome.google_missing")}
                 </p>
               ) : null}
               <p className="text-xs text-slate-500">
-                Регистрируясь, вы соглашаетесь с правилами сообщества.
+                {t("welcome.terms")}
               </p>
             </div>
           </div>

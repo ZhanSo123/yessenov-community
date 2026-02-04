@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { useI18n } from "@/lib/i18n/useI18n";
+
 type AppealButtonProps = {
   targetType: string;
   targetId: string;
@@ -12,16 +14,17 @@ type AppealButtonProps = {
 export default function AppealButton({
   targetType,
   targetId,
-  label = "Подать апелляцию",
+  label,
   className,
 }: AppealButtonProps) {
+  const { t } = useI18n();
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
     "idle"
   );
+  const fallbackLabel = label ?? t("appeal.label");
 
   const handleAppeal = async () => {
-    const reason = window
-      .prompt("Причина апелляции (1-500 символов)")?.trim();
+    const reason = window.prompt(t("appeal.prompt"))?.trim();
 
     if (!reason) {
       return;
@@ -49,12 +52,12 @@ export default function AppealButton({
 
   const statusLabel =
     status === "sent"
-      ? "Отправлено"
+      ? t("appeal.sent")
       : status === "sending"
-        ? "Отправляем..."
+        ? t("appeal.sending")
         : status === "error"
-          ? "Ошибка"
-          : label;
+          ? t("appeal.error")
+          : fallbackLabel;
 
   return (
     <button

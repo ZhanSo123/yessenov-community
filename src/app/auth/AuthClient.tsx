@@ -5,41 +5,42 @@ import { useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 
 import DevLoginButton from "@/components/DevLoginButton";
+import { useI18n } from "@/lib/i18n/useI18n";
 export default function AuthClient() {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
+  const { t } = useI18n();
 
   const errorMessage =
     error === "OAuthAccountNotLinked"
-      ? "Этот email уже используется с другим способом входа."
+      ? t("auth.error.oauth_account_not_linked")
       : error === "CredentialsSignin"
-        ? "Неверный email или пароль."
+        ? t("auth.error.credentials")
         : error === "RATE_LIMIT" || error === "RateLimit"
-          ? "Слишком много попыток. Попробуйте позже."
+          ? t("auth.error.rate_limit")
           : error
-            ? "Не удалось войти. Попробуйте снова."
+            ? t("auth.error.default")
             : "";
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
-      <main className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-6 py-16">
+    <div className="min-h-screen text-slate-900">
+      <main className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-6 pb-20 pt-16">
         <section className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
           <div className="space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/70 px-4 py-2 text-xs uppercase tracking-[0.3em] text-slate-500 shadow-sm">
-              Yessenov Community
+            <div className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs uppercase tracking-[0.3em] text-slate-500 bubble-chip">
+              {t("common.app_name")}
             </div>
             <h1 className="text-4xl font-semibold leading-tight sm:text-5xl">
-              Вход в студенческую соцсеть.
+              {t("auth.title")}
             </h1>
             <p className="max-w-xl text-sm text-slate-600">
-              Делитесь идеями, находите команду для проектов и следите за
-              обновлениями сообщества.
+              {t("auth.subtitle")}
             </p>
           </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white/80 p-6 shadow-lg">
+          <div className="rounded-3xl p-6 bubble-surface-strong">
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold">Начать</h2>
+              <h2 className="text-xl font-semibold">{t("auth.card.title")}</h2>
               {errorMessage ? (
                 <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
                   {errorMessage}
@@ -50,18 +51,18 @@ export default function AuthClient() {
                   href="/auth/login"
                   className="bubble-btn-primary rounded-full px-5 py-3 text-center text-sm font-semibold pressable"
                 >
-                  Войти
+                  {t("auth.actions.sign_in")}
                 </Link>
                 <Link
                   href="/auth/register"
                   className="bubble-btn rounded-full px-5 py-3 text-center text-sm font-semibold pressable"
                 >
-                  Создать аккаунт
+                  {t("auth.actions.register")}
                 </Link>
               </div>
               <div className="flex items-center gap-3 text-xs text-slate-400">
                 <span className="h-px flex-1 bg-slate-200" />
-                или
+                {t("common.or")}
                 <span className="h-px flex-1 bg-slate-200" />
               </div>
               <button
@@ -69,11 +70,11 @@ export default function AuthClient() {
                 onClick={() => signIn("google", { callbackUrl: "/" })}
                 className="bubble-btn w-full rounded-full px-5 py-3 text-sm font-semibold pressable"
               >
-                Продолжить с Google
+                {t("auth.actions.google")}
               </button>
               <DevLoginButton />
               <p className="text-xs text-slate-500">
-                Регистрируясь, вы соглашаетесь с правилами сообщества.
+                {t("auth.terms")}
               </p>
             </div>
           </div>

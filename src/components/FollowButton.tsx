@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 
+import { useI18n } from "@/lib/i18n/useI18n";
+
 type FollowButtonProps = {
   username: string;
   initialFollowing: boolean;
@@ -13,6 +15,7 @@ export default function FollowButton({
   initialFollowing,
 }: FollowButtonProps) {
   const { data: session, status } = useSession();
+  const { t } = useI18n();
   const [following, setFollowing] = useState(initialFollowing);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,7 +39,7 @@ export default function FollowButton({
     setMessage("");
 
     if (isUnauthed) {
-      setMessage("Войдите, чтобы подписаться.");
+      setMessage(t("follow.error.sign_in"));
       return;
     }
 
@@ -55,7 +58,7 @@ export default function FollowButton({
       });
 
       if (response.status === 401) {
-        setMessage("Сессия истекла. Перезайдите.");
+        setMessage(t("follow.error.session_expired"));
         setFollowing(previous);
         return;
       }
@@ -67,18 +70,20 @@ export default function FollowButton({
         if (payload?.error === "BANNED") {
           const until = payload.bannedUntil
             ? new Date(payload.bannedUntil).toLocaleDateString()
-            : "неизвестно";
-          const reason = payload.banReason ? ` Причина: ${payload.banReason}` : "";
-          setMessage(`Вы заблокированы до ${until}.${reason}`);
+            : t("common.unknown");
+          const reason = payload.banReason
+            ? ` ${t("common.reason", { reason: payload.banReason })}`
+            : "";
+          setMessage(t("follow.error.banned", { until, reason }));
         } else {
-          setMessage("Доступ запрещён.");
+          setMessage(t("follow.error.forbidden"));
         }
         setFollowing(previous);
         return;
       }
 
       if (!response.ok) {
-        setMessage("Не удалось обновить подписку.");
+        setMessage(t("follow.error.update_failed"));
         setFollowing(previous);
         return;
       }
@@ -88,7 +93,7 @@ export default function FollowButton({
       };
       setFollowing(Boolean(payload.data?.following));
     } catch {
-      setMessage("Не удалось обновить подписку.");
+      setMessage(t("follow.error.update_failed"));
       setFollowing(previous);
     } finally {
       setLoading(false);
@@ -105,7 +110,11 @@ export default function FollowButton({
           pulse ? "animate-pop" : ""
         }`}
       >
-        {loading ? "Обновляем..." : following ? "Отписаться" : "Подписаться"}
+        {loading
+          ? t("follow.action.pending")
+          : following
+            ? t("follow.action.unfollow")
+            : t("follow.action.follow")}
       </button>
       {message ? <p className="text-xs text-slate-500">{message}</p> : null}
     </div>

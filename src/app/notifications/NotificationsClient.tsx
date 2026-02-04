@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { useI18n } from "@/lib/i18n/useI18n";
+
 type NotificationActor = {
   id: string;
   username: string | null;
@@ -31,51 +33,9 @@ type UnreadCountResponse = {
   error?: string;
 };
 
-const formatRelativeTime = (value: string) => {
-  const createdAt = new Date(value);
-  if (Number.isNaN(createdAt.getTime())) {
-    return "только что";
-  }
-  const diffMs = Date.now() - createdAt.getTime();
-  if (diffMs < 0) {
-    return "только что";
-  }
-  const diffMinutes = Math.max(1, Math.floor(diffMs / (60 * 1000)));
-  if (diffMinutes < 60) {
-    return `${diffMinutes} мин назад`;
-  }
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) {
-    return `${diffHours} ч назад`;
-  }
-  if (diffHours < 48) {
-    return "вчера";
-  }
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays} д назад`;
-};
-
-const buildMessage = (item: NotificationItem) => {
-  const actorHandle = item.actor?.username
-    ? `@${item.actor.username}`
-    : "@user";
-
-  switch (item.type) {
-    case "REPLY":
-      return `${actorHandle} ответил на ваш пост`;
-    case "LIKE":
-      return `${actorHandle} лайкнул ваш пост`;
-    case "FOLLOW":
-      return `${actorHandle} подписался на вас`;
-    case "MENTION":
-      return `${actorHandle} упомянул вас`;
-    default:
-      return "Новое уведомление";
-  }
-};
-
 export default function NotificationsClient() {
   const router = useRouter();
+  const { t } = useI18n();
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -96,7 +56,7 @@ export default function NotificationsClient() {
         ]);
 
         if (!listRes.ok) {
-          throw new Error("Не удалось загрузить уведомления.");
+          throw new Error(t("common.error_load"));
         }
 
         const listPayload = (await listRes.json()) as NotificationsResponse;
@@ -111,7 +71,7 @@ export default function NotificationsClient() {
           setError(
             fetchError instanceof Error
               ? fetchError.message
-              : "Ошибка загрузки"
+              : t("common.error_load")
           );
         }
       } finally {
@@ -186,9 +146,9 @@ export default function NotificationsClient() {
   const emptyState = useMemo(
     () =>
       !loading && !error && items.length === 0
-        ? "Пока тихо. Когда кто-то ответит или лайкнет — появится здесь."
+        ? t("notifications.empty")
         : "",
-    [error, items.length, loading]
+    [error, items.length, loading, t]
   );
 
   return (
@@ -196,9 +156,9 @@ export default function NotificationsClient() {
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-12">
         <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-semibold">Уведомления</h1>
+            <h1 className="text-3xl font-semibold">{t("notifications.title")}</h1>
             <p className="text-sm text-slate-500">
-              Новые ответы, лайки и упоминания.
+              {t("notifications.subtitle")}
             </p>
           </div>
           <button
@@ -207,11 +167,13 @@ export default function NotificationsClient() {
             disabled={markingAll || unreadCount === 0}
             className="bubble-btn rounded-full px-4 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60 pressable"
           >
-            Отметить всё прочитанным
+            {t("notifications.mark_all")}
           </button>
         </header>
 
-        {loading ? <p className="text-sm text-slate-500">Загрузка...</p> : null}
+        {loading ? (
+          <p className="text-sm text-slate-500">{t("common.loading")}</p>
+        ) : null}
         {error ? (
           <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
             {error}
@@ -231,6 +193,46 @@ export default function NotificationsClient() {
               .replace("@", "")
               .slice(0, 1)
               .toUpperCase();
+            const actorHandle = item.actor?.username
+              ? `@${item.actor.username}`
+              : "@user";
+            const buildMessage = () => {
+              switch (item.type) {
+                case "REPLY":
+                  return t("notifications.reply", { actor: actorHandle });
+                case "LIKE":
+                  return t("notifications.like", { actor: actorHandle });
+                case "FOLLOW":
+                  return t("notifications.follow", { actor: actorHandle });
+                case "MENTION":
+                  return t("notifications.mention", { actor: actorHandle });
+                default:
+                  return t("notifications.default");
+              }
+            };
+            const formatRelativeTime = (value: string) => {
+              const createdAt = new Date(value);
+              if (Number.isNaN(createdAt.getTime())) {
+                return t("post.just_now");
+              }
+              const diffMs = Date.now() - createdAt.getTime();
+              if (diffMs < 0) {
+                return t("post.just_now");
+              }
+              const diffMinutes = Math.max(1, Math.floor(diffMs / (60 * 1000)));
+              if (diffMinutes < 60) {
+                return t("post.minutes_ago", { count: diffMinutes });
+              }
+              const diffHours = Math.floor(diffMinutes / 60);
+              if (diffHours < 24) {
+                return t("post.hours_ago", { count: diffHours });
+              }
+              if (diffHours < 48) {
+                return t("post.yesterday");
+              }
+              const diffDays = Math.floor(diffHours / 24);
+              return t("post.days_ago", { count: diffDays });
+            };
 
             return (
               <button
@@ -255,7 +257,7 @@ export default function NotificationsClient() {
                   </div>
                 )}
                 <div className="flex flex-1 flex-col gap-1">
-                  <p className="text-sm text-slate-800">{buildMessage(item)}</p>
+                  <p className="text-sm text-slate-800">{buildMessage()}</p>
                   <span className="text-xs text-slate-400">
                     {formatRelativeTime(item.createdAt)}
                   </span>

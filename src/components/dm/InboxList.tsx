@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import ConversationRow from "@/components/dm/ConversationRow";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 type Participant = {
   username: string | null;
@@ -30,6 +31,7 @@ type InboxResponse = {
 };
 
 export default function InboxList() {
+  const { t } = useI18n();
   const [items, setItems] = useState<InboxItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -44,7 +46,7 @@ export default function InboxList() {
 
     const response = await fetch(url, { credentials: "include" });
     if (!response.ok) {
-      throw new Error("Не удалось загрузить сообщения.");
+      throw new Error(t("dm.inbox.error.load"));
     }
 
     const payload = (await response.json()) as InboxResponse;
@@ -69,7 +71,7 @@ export default function InboxList() {
           setError(
             fetchError instanceof Error
               ? fetchError.message
-              : "Ошибка загрузки"
+              : t("dm.inbox.error.load_generic")
           );
         }
       } finally {
@@ -102,7 +104,9 @@ export default function InboxList() {
       await loadInbox(nextCursor, true);
     } catch (fetchError) {
       setError(
-        fetchError instanceof Error ? fetchError.message : "Ошибка загрузки"
+        fetchError instanceof Error
+          ? fetchError.message
+          : t("dm.inbox.error.load_generic")
       );
     } finally {
       setLoadingMore(false);
@@ -112,7 +116,7 @@ export default function InboxList() {
   const emptyState = useMemo(
     () =>
       !loading && !error && items.length === 0
-        ? "Пока нет диалогов. Напишите первым."
+        ? t("dm.inbox.empty")
         : "",
     [error, items.length, loading]
   );
@@ -170,10 +174,10 @@ export default function InboxList() {
           type="button"
           onClick={handleLoadMore}
           disabled={loadingMore}
-          className="bubble-btn rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-60 pressable"
-        >
-          {loadingMore ? "Загружаем..." : "Показать ещё"}
-        </button>
+        className="bubble-btn rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-60 pressable"
+      >
+          {loadingMore ? t("dm.inbox.loading_more") : t("dm.inbox.load_more")}
+      </button>
       ) : null}
     </div>
   );

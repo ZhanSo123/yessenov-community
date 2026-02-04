@@ -1,11 +1,10 @@
 import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
-import { createAuditLog } from "@/lib/audit-log";
-import { canModerate, getCommunityModeratorRole, requireUserApi } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { requireUserApi } from "@/lib/auth";
 import { rateLimitModeration } from "@/lib/rate-limit";
 import { AdminPostDeleteSchema } from "@/lib/validators";
+import { AdminPostService } from "@/services/admin-post-service";
 
 export const runtime = "nodejs";
 
@@ -17,7 +16,7 @@ export async function POST(
     const { id } = await context.params;
     const actor = await requireUserApi();
 
-    if (!rateLimitModeration(request, actor.id)) {
+    if (!(await rateLimitModeration(request, actor.id))) {
       return apiError("RATE_LIMIT", 429);
     }
 
@@ -42,48 +41,19 @@ export async function POST(
       return apiError("BAD_REQUEST", 400);
     }
 
-    const target = await prisma.post.findUnique({
-      where: { id: postId },
-      select: { id: true, communityId: true },
+    const service = new AdminPostService();
+    const result = await service.deletePost({
+      postId,
+      actor: { id: actor.id, role: actor.role },
+      reason: parsed.data.reason,
+      request,
     });
 
-    if (!target) {
-      return apiError("NOT_FOUND", 404);
+    if (!result.ok) {
+      return apiError(result.code, result.status);
     }
 
-    if (!canModerate(actor)) {
-      if (!target.communityId) {
-        return apiError("FORBIDDEN", 403);
-      }
-
-      const role = await getCommunityModeratorRole(target.communityId, actor.id);
-      if (!role) {
-        return apiError("FORBIDDEN", 403);
-      }
-    }
-
-    const post = await prisma.$transaction(async (tx) => {
-      const updated = await tx.post.update({
-        where: { id: postId },
-        data: {
-          deletedAt: new Date(),
-          deletedById: actor.id,
-          deleteReason: parsed.data.reason ?? null,
-        },
-      });
-
-      await createAuditLog(tx, request, {
-        actor: { connect: { id: actor.id } },
-        action: "POST_DELETE",
-        targetType: "Post",
-        targetId: String(postId),
-        metadata: { reason: parsed.data.reason ?? null },
-      });
-
-      return updated;
-    });
-
-    return apiSuccess({ data: post });
+    return apiSuccess(result.payload);
   } catch (error) {
     if (error instanceof Response) {
       return error;

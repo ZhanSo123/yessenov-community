@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 
 import PostCard from "@/components/PostCard";
 import { type PostWithMeta } from "@/lib/post-types";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 type ProfileResponse = {
   data?: {
@@ -63,11 +64,11 @@ type FollowListResponse = {
 type TabKey = "posts" | "replies";
 
 const PROFILE_TABS = [
-  { key: "posts", label: "Посты", endpoint: "posts" },
-  { key: "replies", label: "Ответы", endpoint: "replies" },
+  { key: "posts", labelKey: "profile.tabs.posts", endpoint: "posts" },
+  { key: "replies", labelKey: "profile.tabs.replies", endpoint: "replies" },
 ] as const satisfies readonly {
   key: TabKey;
-  label: string;
+  labelKey: "profile.tabs.posts" | "profile.tabs.replies";
   endpoint: "posts" | "replies";
 }[];
 
@@ -89,12 +90,12 @@ const createTabState = (): TabState => ({
   totalCount: 0,
 });
 
-const formatMonthYear = (value: string) => {
+const formatMonthYear = (value: string, locale: string, fallback: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return "недавно";
+    return fallback;
   }
-  return date.toLocaleString("ru-RU", { month: "long", year: "numeric" });
+  return date.toLocaleString(locale, { month: "long", year: "numeric" });
 };
 
 export default function ProfileClient() {
@@ -104,6 +105,7 @@ export default function ProfileClient() {
   const usernameParam =
     typeof params.username === "string" ? params.username : "";
   const { status } = useSession();
+  const { t, locale } = useI18n();
   const isUnauthed = status === "unauthenticated";
   const isLoadingSession = status === "loading";
 
@@ -225,7 +227,7 @@ export default function ProfileClient() {
           { credentials: "include" }
         );
         if (!response.ok) {
-          throw new Error("Не удалось загрузить контент.");
+          throw new Error(t("profile.error.load_content"));
         }
         const payload = (await response.json()) as PostsResponse;
         setTabState((current) => ({
@@ -252,7 +254,7 @@ export default function ProfileClient() {
             error:
               fetchError instanceof Error
                 ? fetchError.message
-                : "Ошибка загрузки",
+                : t("profile.error.load_generic"),
           },
         }));
       }
@@ -275,7 +277,7 @@ export default function ProfileClient() {
           return;
         }
         if (!response.ok) {
-          throw new Error("Не удалось загрузить профиль.");
+          throw new Error(t("profile.error.load_profile"));
         }
         const payload = (await response.json()) as ProfileResponse;
         if (active) {
@@ -286,7 +288,7 @@ export default function ProfileClient() {
           setError(
             fetchError instanceof Error
               ? fetchError.message
-              : "Ошибка загрузки"
+              : t("profile.error.load_generic")
           );
         }
       } finally {
@@ -402,12 +404,12 @@ export default function ProfileClient() {
           title: profile.displayName ?? `@${profile.username}`,
           url,
         });
-        setShareStatus("Поделились ссылкой");
+        setShareStatus(t("profile.share.link_shared"));
         return;
       }
       if (navigator?.clipboard) {
         await navigator.clipboard.writeText(url);
-        setShareStatus("Ссылка скопирована");
+        setShareStatus(t("profile.share.link_copied"));
         return;
       }
       const input = document.createElement("input");
@@ -416,9 +418,9 @@ export default function ProfileClient() {
       input.select();
       document.execCommand("copy");
       document.body.removeChild(input);
-      setShareStatus("Ссылка скопирована");
+      setShareStatus(t("profile.share.link_copied"));
     } catch {
-      setShareStatus("Не удалось поделиться");
+      setShareStatus(t("profile.share.failed"));
     }
   };
 
@@ -430,7 +432,7 @@ export default function ProfileClient() {
     try {
       if (navigator?.clipboard) {
         await navigator.clipboard.writeText(handle);
-        setShareStatus("Username скопирован");
+        setShareStatus(t("profile.share.username_copied"));
         return;
       }
       const input = document.createElement("input");
@@ -439,9 +441,9 @@ export default function ProfileClient() {
       input.select();
       document.execCommand("copy");
       document.body.removeChild(input);
-      setShareStatus("Username скопирован");
+      setShareStatus(t("profile.share.username_copied"));
     } catch {
-      setShareStatus("Не удалось скопировать");
+      setShareStatus(t("profile.share.username_failed"));
     }
   };
 
@@ -450,15 +452,15 @@ export default function ProfileClient() {
       return;
     }
     if (isUnauthed || isLoadingSession) {
-      setShareStatus("Войдите, чтобы пожаловаться");
+      setShareStatus(t("profile.report.sign_in"));
       return;
     }
     const reason = window
-      .prompt("Причина жалобы (1-200 символов)")?.trim();
+      .prompt(t("profile.report.prompt"))?.trim();
     if (!reason) {
       return;
     }
-    setShareStatus("Отправляем...");
+    setShareStatus(t("profile.report.sending"));
     try {
       const response = await fetch("/api/feedback", {
         method: "POST",
@@ -470,12 +472,12 @@ export default function ProfileClient() {
         }),
       });
       if (!response.ok) {
-        setShareStatus("Не удалось отправить");
+        setShareStatus(t("profile.report.failed"));
         return;
       }
-      setShareStatus("Жалоба отправлена");
+      setShareStatus(t("profile.report.sent"));
     } catch {
-      setShareStatus("Не удалось отправить");
+      setShareStatus(t("profile.report.failed"));
     }
   };
 
@@ -510,7 +512,7 @@ export default function ProfileClient() {
         pinnedPostId: prevPinned,
       });
       setPinnedPost(prevPinned ? prevPinnedPost : null);
-      setShareStatus("Не удалось закрепить");
+      setShareStatus(t("profile.pin.failed"));
     } finally {
       setPinSaving(false);
     }
@@ -607,17 +609,17 @@ export default function ProfileClient() {
       });
 
       if (response.status === 401) {
-        setDmError("Войдите, чтобы написать.");
+        setDmError(t("profile.dm.sign_in"));
         return;
       }
 
       if (!response.ok) {
         if (response.status === 400) {
-          setDmError("Некорректный запрос.");
+          setDmError(t("profile.dm.invalid_request"));
         } else if (response.status === 404) {
-          setDmError("Пользователь не найден.");
+          setDmError(t("profile.dm.not_found"));
         } else {
-          setDmError("Ошибка сервера. Попробуйте позже.");
+          setDmError(t("profile.dm.server_error"));
         }
         return;
       }
@@ -627,13 +629,13 @@ export default function ProfileClient() {
       };
       const conversationId = payload.data?.conversationId;
       if (!conversationId) {
-        setDmError("Не удалось открыть диалог.");
+        setDmError(t("profile.dm.open_failed"));
         return;
       }
 
       router.push(`/messages/${conversationId}`);
     } catch {
-      setDmError("Не удалось открыть диалог.");
+      setDmError(t("profile.dm.open_failed"));
     } finally {
       setDmLoading(false);
     }
@@ -685,7 +687,7 @@ export default function ProfileClient() {
         );
         setOverlayNextCursor(payload.nextCursor ?? null);
       } catch {
-        setOverlayError("Не удалось загрузить список.");
+        setOverlayError(t("profile.overlay.error"));
       } finally {
         if (isInitial) {
           setOverlayLoading(false);
@@ -803,8 +805,10 @@ export default function ProfileClient() {
     if (profile.viewer?.isMe) {
       return null;
     }
-    return profile.viewer?.isFollowing ? "Отписаться" : "Подписаться";
-  }, [profile]);
+    return profile.viewer?.isFollowing
+      ? t("profile.follow.unfollow")
+      : t("profile.follow.follow");
+  }, [profile, t]);
 
   const skeleton = (
     <div className="space-y-6">
@@ -847,7 +851,7 @@ export default function ProfileClient() {
                     />
                   ) : (
                     <div className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-200 text-lg font-semibold text-slate-600">
-                      {(profile.displayName || profile.username || "U")
+                      {(profile.displayName || profile.username || t("common.user"))
                         .slice(0, 1)
                         .toUpperCase()}
                     </div>
@@ -860,7 +864,7 @@ export default function ProfileClient() {
                       type="button"
                       onClick={handleCopyUsername}
                       className="text-left text-sm text-slate-500 transition hover:text-slate-900"
-                      aria-label="Скопировать username"
+                      aria-label={t("profile.menu.copy_username")}
                     >
                       @{profile.username}
                     </button>
@@ -870,7 +874,13 @@ export default function ProfileClient() {
                       </p>
                     ) : null}
                     <p className="mt-3 text-xs text-slate-400">
-                      Пишет здесь с {formatMonthYear(profile.createdAt)}
+                      {t("profile.member_since", {
+                        date: formatMonthYear(
+                          profile.createdAt,
+                          locale,
+                          t("profile.recent")
+                        ),
+                      })}
                     </p>
                   </div>
                 </div>
@@ -881,7 +891,7 @@ export default function ProfileClient() {
                         type="button"
                         onClick={() => setProfileMenuOpen((open) => !open)}
                         className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 transition hover:border-[#6495ED]/40 hover:text-[#6495ED]"
-                        aria-label="Меню профиля"
+                        aria-label={t("profile.menu.title")}
                       >
                         ⋯
                       </button>
@@ -895,7 +905,7 @@ export default function ProfileClient() {
                             }}
                             className="w-full rounded-lg px-3 py-2 text-left text-slate-700 transition hover:bg-slate-50"
                           >
-                            Редактировать профиль
+                            {t("profile.menu.edit")}
                           </button>
                           <button
                             type="button"
@@ -905,7 +915,7 @@ export default function ProfileClient() {
                             }}
                             className="w-full rounded-lg px-3 py-2 text-left text-slate-700 transition hover:bg-slate-50"
                           >
-                            Поделиться
+                            {t("profile.menu.share")}
                           </button>
                         </div>
                       ) : null}
@@ -925,12 +935,12 @@ export default function ProfileClient() {
                           followPulse ? "animate-pop" : ""
                         }`}
                       >
-                        {followSaving ? "Обновляем..." : followLabel}
+                        {followSaving ? t("profile.follow.pending") : followLabel}
                       </button>
                     ) : null}
                     {isUnauthed ? (
                       <p className="text-xs text-slate-400">
-                        Войдите, чтобы подписаться и писать сообщения.
+                        {t("profile.follow.sign_in_hint")}
                       </p>
                     ) : null}
                     <div className="flex items-center gap-2">
@@ -940,14 +950,14 @@ export default function ProfileClient() {
                         disabled={isUnauthed || isLoadingSession || dmLoading}
                         className="bubble-btn rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-60 pressable"
                       >
-                        {dmLoading ? "Открываем..." : "Написать"}
+                        {dmLoading ? t("profile.dm.opening") : t("profile.dm.write")}
                       </button>
                       <div ref={profileMenuRef} className="relative">
                         <button
                           type="button"
                           onClick={() => setProfileMenuOpen((open) => !open)}
                           className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-600 transition hover:border-[#6495ED]/40 hover:text-[#6495ED]"
-                          aria-label="Меню профиля"
+                          aria-label={t("profile.menu.title")}
                         >
                           ⋯
                         </button>
@@ -961,7 +971,7 @@ export default function ProfileClient() {
                               }}
                               className="w-full rounded-lg px-3 py-2 text-left text-slate-700 transition hover:bg-slate-50"
                             >
-                              Поделиться
+                              {t("profile.menu.share")}
                             </button>
                             <button
                               type="button"
@@ -971,7 +981,7 @@ export default function ProfileClient() {
                               }}
                               className="w-full rounded-lg px-3 py-2 text-left text-rose-600 transition hover:bg-rose-50"
                             >
-                              Пожаловаться
+                              {t("profile.menu.report")}
                             </button>
                           </div>
                         ) : null}
@@ -996,7 +1006,7 @@ export default function ProfileClient() {
                   <span className="font-semibold text-slate-900">
                     {profile.stats.postsCount}
                   </span>{" "}
-                  постов
+                  {t("profile.stats.posts")}
                 </button>
                 <button
                   type="button"
@@ -1006,7 +1016,7 @@ export default function ProfileClient() {
                   <span className="font-semibold text-slate-900">
                     {profile.stats.followersCount}
                   </span>{" "}
-                  подписчиков
+                  {t("profile.stats.followers")}
                 </button>
                 <button
                   type="button"
@@ -1016,7 +1026,7 @@ export default function ProfileClient() {
                   <span className="font-semibold text-slate-900">
                     {profile.stats.followingCount}
                   </span>{" "}
-                  подписок
+                  {t("profile.stats.following")}
                 </button>
               </div>
 
@@ -1033,7 +1043,7 @@ export default function ProfileClient() {
                           : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                       }`}
                     >
-                      {tab.label}
+                      {t(tab.labelKey)}
                     </button>
                   ))}
                 </div>
@@ -1042,7 +1052,7 @@ export default function ProfileClient() {
 
             <section className="space-y-4">
               {tabState[activeTab].loading ? (
-                <p className="text-sm text-slate-500">Загрузка...</p>
+                <p className="text-sm text-slate-500">{t("common.loading")}</p>
               ) : tabState[activeTab].error ? (
                 <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
                   {tabState[activeTab].error}
@@ -1051,17 +1061,21 @@ export default function ProfileClient() {
                 !(activeTab === "posts" && pinnedPost) ? (
                 <p className="text-sm text-slate-500">
                   {activeTab === "posts"
-                    ? `@${profile.username} пока ничего не написал`
-                    : `@${profile.username} пока не отвечал`}
+                    ? t("profile.empty.posts", {
+                        handle: `@${profile.username}`,
+                      })
+                    : t("profile.empty.replies", {
+                        handle: `@${profile.username}`,
+                      })}
                 </p>
               ) : (
                 <>
                   {activeTab === "posts" && pinnedPost ? (
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-                        <span>Закреплено</span>
+                        <span>{t("profile.pin.pinned")}</span>
                         <span className="h-1 w-1 rounded-full bg-slate-300" />
-                        <span>Пост автора</span>
+                        <span>{t("profile.pin.author_post")}</span>
                       </div>
                       <PostCard
                         post={pinnedPost}
@@ -1073,7 +1087,7 @@ export default function ProfileClient() {
                             ? [
                                 {
                                   key: "pin",
-                                  label: "Открепить",
+                                  label: t("profile.pin.unpin"),
                                   onClick: () => handlePinToggle(pinnedPost),
                                   disabled: pinSaving,
                                 },
@@ -1101,8 +1115,8 @@ export default function ProfileClient() {
                                 key: "pin",
                                 label:
                                   profile.pinnedPostId === post.id
-                                    ? "Открепить"
-                                    : "Закрепить",
+                                    ? t("profile.pin.unpin")
+                                    : t("profile.pin.pin"),
                                 onClick: () => handlePinToggle(post),
                                 disabled: pinSaving,
                               },
@@ -1123,14 +1137,16 @@ export default function ProfileClient() {
           <div className="relative w-full max-w-xl rounded-3xl bg-white p-6 shadow-xl">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-slate-900">
-                {overlayMode === "followers" ? "Подписчики" : "Подписки"}
+                {overlayMode === "followers"
+                  ? t("profile.overlay.followers")
+                  : t("profile.overlay.following")}
               </h2>
               <button
                 type="button"
                 onClick={closeOverlay}
                 className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500 transition hover:border-slate-300"
               >
-                Закрыть
+                {t("profile.overlay.close")}
               </button>
             </div>
 
@@ -1147,20 +1163,20 @@ export default function ProfileClient() {
             ) : overlayItems.length === 0 ? (
               <p className="mt-6 text-sm text-slate-500">
                 {overlayMode === "followers"
-                  ? "Пока нет подписчиков"
-                  : "Пока ни на кого не подписан"}
+                  ? t("profile.overlay.empty_followers")
+                  : t("profile.overlay.empty_following")}
               </p>
             ) : (
               <div className="mt-6 space-y-3">
                 {overlayItems.map((item) => {
                   const displayName =
-                    item.displayName || item.username || "User";
+                    item.displayName || item.username || t("common.user");
                   const handle = item.username ? `@${item.username}` : "@user";
                   const label = item.viewer.isFriend
-                    ? "Друзья"
+                    ? t("profile.overlay.friends")
                     : item.viewer.isFollowing
-                    ? "Вы подписаны"
-                    : "Подписаться";
+                    ? t("profile.overlay.following_state")
+                    : t("profile.overlay.follow");
 
                   return (
                     <div
@@ -1180,7 +1196,9 @@ export default function ProfileClient() {
                           />
                         ) : (
                           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-600">
-                            {(displayName || "U").slice(0, 1).toUpperCase()}
+                            {(displayName || t("common.user"))
+                              .slice(0, 1)
+                              .toUpperCase()}
                           </div>
                         )}
                         <div>
@@ -1206,7 +1224,9 @@ export default function ProfileClient() {
                 })}
                 <div ref={loadMoreRef} />
                 {overlayLoadingMore ? (
-                  <p className="text-xs text-slate-400">Загрузка...</p>
+                  <p className="text-xs text-slate-400">
+                    {t("profile.overlay.loading")}
+                  </p>
                 ) : null}
               </div>
             )}

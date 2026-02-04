@@ -1,32 +1,46 @@
-import { Redis } from "@upstash/redis";
+import { createHash } from "node:crypto";
+
+import { redis, redisReady } from "@/lib/redis";
 
 type CacheEntry<T> = {
   value: T;
   expiresAt: number;
 };
 
+const MAX_CACHE_SIZE = 500;
 const memoryCache = new Map<string, CacheEntry<unknown>>();
-let redisClient: Redis | null | undefined;
 
-const getRedis = () => {
-  if (redisClient !== undefined) {
-    return redisClient;
+const pruneExpired = (now: number) => {
+  for (const [key, entry] of memoryCache) {
+    if (entry.expiresAt <= now) {
+      memoryCache.delete(key);
+    }
+  }
+};
+
+const enforceMaxSize = () => {
+  if (memoryCache.size <= MAX_CACHE_SIZE) {
+    return;
   }
 
-  const provider = process.env.CACHE_PROVIDER;
-  const url = process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-  if (provider === "memory" || !url || !token) {
-    redisClient = null;
-    return null;
+  for (const key of memoryCache.keys()) {
+    memoryCache.delete(key);
+    if (memoryCache.size <= MAX_CACHE_SIZE) {
+      break;
+    }
   }
-
-  redisClient = new Redis({ url, token });
-  return redisClient;
 };
 
 export const cacheGet = async <T>(key: string): Promise<T | null> => {
+  if (redisReady && redis) {
+    try {
+      const value = await redis.get<T>(key);
+      return value ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   const entry = memoryCache.get(key) as CacheEntry<T> | undefined;
   if (entry) {
     if (Date.now() > entry.expiresAt) {
@@ -35,21 +49,7 @@ export const cacheGet = async <T>(key: string): Promise<T | null> => {
       return entry.value;
     }
   }
-
-  const redis = getRedis();
-  if (!redis) {
-    return null;
-  }
-
-  try {
-    const value = await redis.get<T>(key);
-    if (value === null || value === undefined) {
-      return null;
-    }
-    return value;
-  } catch {
-    return null;
-  }
+  return null;
 };
 
 export const cacheSet = async <T>(
@@ -57,17 +57,58 @@ export const cacheSet = async <T>(
   value: T,
   ttlMs: number
 ): Promise<void> => {
-  memoryCache.set(key, { value, expiresAt: Date.now() + ttlMs });
+  if (redisReady && redis) {
+    try {
+      const ttlSeconds = Math.max(1, Math.ceil(ttlMs / 1000));
+      await redis.set(key, value, { ex: ttlSeconds });
+      return;
+    } catch {
+      return;
+    }
+  }
 
-  const redis = getRedis();
-  if (!redis) {
+  const now = Date.now();
+  memoryCache.set(key, { value, expiresAt: now + ttlMs });
+  pruneExpired(now);
+  enforceMaxSize();
+};
+
+export const cacheDel = async (prefixOrKey: string): Promise<void> => {
+  if (!prefixOrKey) {
     return;
   }
 
-  try {
-    const exSeconds = Math.max(1, Math.round(ttlMs / 1000));
-    await redis.set(key, value, { ex: exSeconds });
-  } catch {
-    // Ignore Redis write errors and rely on memory fallback.
+  if (redisReady && redis) {
+    try {
+      let cursor = "0";
+      const match = `${prefixOrKey}*`;
+      do {
+        const [nextCursor, keys] = (await redis.scan(cursor, {
+          match,
+          count: 100,
+        })) as [string, string[]];
+        if (keys.length > 0) {
+          await redis.del(...keys);
+        }
+        cursor = nextCursor;
+      } while (cursor !== "0");
+      return;
+    } catch {
+      return;
+    }
+  }
+
+  for (const key of memoryCache.keys()) {
+    if (key === prefixOrKey || key.startsWith(prefixOrKey)) {
+      memoryCache.delete(key);
+    }
   }
 };
+
+const hashCacheKey = (key: string) =>
+  createHash("sha256").update(key).digest("hex").slice(0, 12);
+
+export const buildCacheHeaders = (key: string, hit: boolean): HeadersInit => ({
+  "x-cache": hit ? "HIT" : "MISS",
+  "x-cache-key": hashCacheKey(key),
+});

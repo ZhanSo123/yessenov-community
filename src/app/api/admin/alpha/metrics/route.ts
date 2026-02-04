@@ -1,6 +1,6 @@
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { requireRoleApi } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { AdminMetricsService } from "@/services/admin-metrics-service";
 
 export const runtime = "nodejs";
 
@@ -8,33 +8,15 @@ export async function GET() {
   try {
     await requireRoleApi("ADMIN");
 
-    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-
-    const [
+    const service = new AdminMetricsService();
+    const {
       usersTotal,
       usersInvitedAccepted,
       usersOnboarded,
       postsLast24h,
       repliesLast24h,
       feedbackLast24h,
-    ] = await prisma.$transaction([
-      prisma.user.count(),
-      prisma.user.count({
-        where: { inviteAcceptedAt: { not: null } },
-      }),
-      prisma.user.count({
-        where: { username: { not: null } },
-      }),
-      prisma.post.count({
-        where: { replyToId: null, createdAt: { gte: since } },
-      }),
-      prisma.post.count({
-        where: { replyToId: { not: null }, createdAt: { gte: since } },
-      }),
-      prisma.feedback.count({
-        where: { createdAt: { gte: since } },
-      }),
-    ]);
+    } = await service.getAlphaMetrics();
 
     return apiSuccess({
       data: {

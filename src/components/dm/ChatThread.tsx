@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 
 import MessageBubble from "@/components/dm/MessageBubble";
 import MessageComposer from "@/components/dm/MessageComposer";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 type Participant = {
   id: string;
@@ -42,6 +43,7 @@ type SendResponse = {
 export default function ChatThread({ conversationId }: { conversationId: string }) {
   const { data: session } = useSession();
   const router = useRouter();
+  const { t } = useI18n();
   const [conversation, setConversation] = useState<ConversationResponse["data"] | null>(
     null
   );
@@ -76,17 +78,17 @@ export default function ChatThread({ conversationId }: { conversationId: string 
       });
 
       if (response.status === 403) {
-        setError("Доступ запрещён.");
+        setError(t("dm.thread.error.forbidden"));
         return;
       }
 
       if (response.status === 404) {
-        setError("Диалог не найден.");
+        setError(t("dm.thread.error.not_found"));
         return;
       }
 
       if (!response.ok) {
-        throw new Error("Не удалось загрузить диалог.");
+        throw new Error(t("dm.thread.error.load"));
       }
 
       const payload = (await response.json()) as ConversationResponse;
@@ -103,7 +105,9 @@ export default function ChatThread({ conversationId }: { conversationId: string 
       });
     } catch (fetchError) {
       setError(
-        fetchError instanceof Error ? fetchError.message : "Ошибка загрузки"
+        fetchError instanceof Error
+          ? fetchError.message
+          : t("dm.thread.error.load_generic")
       );
     } finally {
       setLoading(false);
@@ -134,7 +138,7 @@ export default function ChatThread({ conversationId }: { conversationId: string 
 
       const response = await fetch(url, { credentials: "include" });
       if (!response.ok) {
-        throw new Error("Не удалось загрузить сообщения.");
+        throw new Error(t("dm.thread.error.messages_load"));
       }
 
       const payload = (await response.json()) as ConversationResponse;
@@ -143,7 +147,9 @@ export default function ChatThread({ conversationId }: { conversationId: string 
       setNextCursor(payload.nextCursor ?? null);
     } catch (fetchError) {
       setError(
-        fetchError instanceof Error ? fetchError.message : "Ошибка загрузки"
+        fetchError instanceof Error
+          ? fetchError.message
+          : t("dm.thread.error.load_generic")
       );
     } finally {
       setLoadingMore(false);
@@ -190,12 +196,12 @@ export default function ChatThread({ conversationId }: { conversationId: string 
           router.push("/welcome");
           return false;
         }
-        throw new Error("Не удалось отправить сообщение.");
+        throw new Error(t("dm.thread.error.send"));
       }
 
       const payload = (await response.json()) as SendResponse;
       if (!payload.data) {
-        throw new Error("Не удалось отправить сообщение.");
+        throw new Error(t("dm.thread.error.send"));
       }
 
       setMessages((current) =>
@@ -210,7 +216,7 @@ export default function ChatThread({ conversationId }: { conversationId: string 
       setSendError(
         sendError instanceof Error
           ? sendError.message
-          : "Не удалось отправить сообщение."
+          : t("dm.thread.error.send_generic")
       );
       return false;
     }
@@ -223,19 +229,27 @@ export default function ChatThread({ conversationId }: { conversationId: string 
           {otherParticipant?.image ? (
             <img
               src={otherParticipant.image}
-              alt={otherParticipant.displayName ?? otherParticipant.username ?? "User"}
+              alt={
+                otherParticipant.displayName ??
+                otherParticipant.username ??
+                t("common.user")
+              }
               className="h-10 w-10 rounded-full object-cover"
             />
           ) : (
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-600">
-              {(otherParticipant?.displayName || otherParticipant?.username || "U")
+              {(otherParticipant?.displayName ||
+                otherParticipant?.username ||
+                t("common.user"))
                 .slice(0, 1)
                 .toUpperCase()}
             </div>
           )}
           <div>
             <p className="text-sm font-semibold text-slate-900">
-              {otherParticipant?.displayName || otherParticipant?.username || "Диалог"}
+              {otherParticipant?.displayName ||
+                otherParticipant?.username ||
+                t("dm.thread.title.default")}
             </p>
             {otherParticipant?.username ? (
               <p className="text-xs text-slate-500">@{otherParticipant.username}</p>
@@ -245,7 +259,9 @@ export default function ChatThread({ conversationId }: { conversationId: string 
       </div>
 
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-4 px-6 py-6">
-        {loading ? <p className="text-sm text-slate-500">Загрузка...</p> : null}
+        {loading ? (
+          <p className="text-sm text-slate-500">{t("dm.thread.loading")}</p>
+        ) : null}
         {error ? (
           <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
             {error}
@@ -258,7 +274,7 @@ export default function ChatThread({ conversationId }: { conversationId: string 
             disabled={loadingMore}
             className="bubble-btn self-center rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-60 pressable"
           >
-            {loadingMore ? "Загружаем..." : "Показать ещё"}
+            {loadingMore ? t("dm.thread.loading_more") : t("dm.thread.load_more")}
           </button>
         ) : null}
 

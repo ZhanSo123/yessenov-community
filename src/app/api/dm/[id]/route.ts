@@ -1,10 +1,12 @@
+import { performance } from "node:perf_hooks";
 import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
-import { requireUserApi } from "@/lib/auth";
-import { buildCursorString, parseCursorString } from "@/lib/pagination";
-import { prisma } from "@/lib/prisma";
+import { requireOnboardedUserApi } from "@/lib/auth";
+import { buildCacheHeaders } from "@/lib/cache";
+import { parseCursorString } from "@/lib/pagination";
 import { PaginationSchema } from "@/lib/validators";
+import { DmThreadService } from "@/services/dm-thread-service";
 
 export const runtime = "nodejs";
 
@@ -14,8 +16,20 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  const startMs = performance.now();
+  let limitLog: number | null = null;
+  let cursorLog: string | null = null;
+  const logDb = (query: string, ms: number) => {
+    console.info("api.db", {
+      route: "/api/dm/thread",
+      query,
+      ms,
+      limit: limitLog,
+      cursor: cursorLog,
+    });
+  };
   try {
-    const me = await requireUserApi();
+    const me = await requireOnboardedUserApi();
     const { id } = await context.params;
     if (!id) {
       return apiError("BAD_REQUEST", 400);
@@ -33,99 +47,27 @@ export async function GET(
 
     const limit = pagination.data.limit ?? DEFAULT_LIMIT;
     const cursor = parseCursorString(pagination.data.cursor);
+    limitLog = limit;
+    cursorLog = pagination.data.cursor ?? null;
     if (pagination.data.cursor && !cursor) {
       return apiError("BAD_REQUEST", 400);
     }
-
-    const conversation = await prisma.conversation.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        participants: {
-          select: {
-            userId: true,
-            user: {
-              select: {
-                id: true,
-                username: true,
-                displayName: true,
-                image: true,
-              },
-            },
-          },
-        },
-      },
+    const service = new DmThreadService();
+    const result = await service.getThread({
+      conversationId: id,
+      viewer: { id: me.id, role: me.role },
+      limit,
+      cursor,
+      cursorToken: pagination.data.cursor ?? null,
+      logDb,
     });
 
-    if (!conversation) {
-      return apiError("NOT_FOUND", 404);
+    if (!result.ok) {
+      return apiError(result.code, result.status);
     }
 
-    const isParticipant = conversation.participants.some(
-      (participant) => participant.userId === me.id
-    );
-    if (!isParticipant) {
-      return apiError("FORBIDDEN", 403);
-    }
-
-    const messageWhere = cursor
-      ? {
-          conversationId: id,
-          deletedAt: null,
-          OR: [
-            { createdAt: { lt: cursor.createdAt } },
-            { createdAt: cursor.createdAt, id: { lt: cursor.id } },
-          ],
-        }
-      : { conversationId: id, deletedAt: null };
-
-    const messages = await prisma.message.findMany({
-      where: messageWhere,
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: limit + 1,
-      select: {
-        id: true,
-        content: true,
-        createdAt: true,
-        sender: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            image: true,
-          },
-        },
-      },
-    });
-
-    const hasMore = messages.length > limit;
-    const sliced = hasMore ? messages.slice(0, limit) : messages;
-    const nextCursor = hasMore
-      ? buildCursorString(
-          sliced[sliced.length - 1].createdAt,
-          sliced[sliced.length - 1].id
-        )
-      : null;
-
-    return apiSuccess({
-      data: {
-        conversation: {
-          id: conversation.id,
-          participants: conversation.participants.map((participant) => ({
-            id: participant.user.id,
-            username: participant.user.username,
-            displayName: participant.user.displayName,
-            image: participant.user.image,
-          })),
-        },
-        messages: sliced.map((message) => ({
-          id: message.id,
-          content: message.content,
-          createdAt: message.createdAt,
-          sender: message.sender,
-        })),
-      },
-      nextCursor,
+    return apiSuccess(result.payload, {
+      headers: buildCacheHeaders(result.cacheKey, result.cached),
     });
   } catch (error) {
     if (error instanceof Response) {
@@ -133,5 +75,12 @@ export async function GET(
     }
 
     return apiError("INTERNAL_ERROR", 500);
+  } finally {
+    console.info("api.timing", {
+      route: "/api/dm/thread",
+      ms: Math.round(performance.now() - startMs),
+      limit: limitLog,
+      cursor: cursorLog,
+    });
   }
 }

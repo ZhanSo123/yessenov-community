@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
-import { requireUserApi } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { requireOnboardedUserApi } from "@/lib/auth";
+import { DmReadService } from "@/services/dm-read-service";
 
 export const runtime = "nodejs";
 
@@ -11,46 +11,23 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const me = await requireUserApi();
+    const me = await requireOnboardedUserApi();
     const { id } = await context.params;
     if (!id) {
       return apiError("BAD_REQUEST", 400);
     }
 
-    const conversation = await prisma.conversation.findUnique({
-      where: { id },
-      select: { id: true },
+    const service = new DmReadService();
+    const result = await service.markRead({
+      conversationId: id,
+      userId: me.id,
     });
 
-    if (!conversation) {
-      return apiError("NOT_FOUND", 404);
+    if (!result.ok) {
+      return apiError(result.code, result.status);
     }
 
-    const participant = await prisma.conversationParticipant.findUnique({
-      where: {
-        conversationId_userId: {
-          conversationId: id,
-          userId: me.id,
-        },
-      },
-      select: { userId: true },
-    });
-
-    if (!participant) {
-      return apiError("FORBIDDEN", 403);
-    }
-
-    await prisma.conversationParticipant.update({
-      where: {
-        conversationId_userId: {
-          conversationId: id,
-          userId: me.id,
-        },
-      },
-      data: { lastReadAt: new Date() },
-    });
-
-    return apiSuccess({ ok: true });
+    return apiSuccess(result.payload);
   } catch (error) {
     if (error instanceof Response) {
       return error;

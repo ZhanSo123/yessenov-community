@@ -1,3 +1,5 @@
+import { redis, redisReady } from "@/lib/redis";
+
 type RateLimitEntry = {
   count: number;
   startedAt: number;
@@ -46,12 +48,11 @@ export const getClientIp = (request: Request) => {
   return request.headers.get("x-real-ip") ?? "unknown";
 };
 
-export const rateLimit = (request: Request, keyOverride?: string) => {
-  const key = keyOverride ?? getClientIp(request);
+const rateLimitMemory = (key: string, windowMs: number, max: number) => {
   const now = Date.now();
   const entry = store.get(key);
 
-  if (!entry || now - entry.startedAt > WINDOW_MS) {
+  if (!entry || now - entry.startedAt > windowMs) {
     store.set(key, { count: 1, startedAt: now });
     return true;
   }
@@ -59,15 +60,14 @@ export const rateLimit = (request: Request, keyOverride?: string) => {
   entry.count += 1;
   store.set(key, entry);
 
-  return entry.count <= MAX_REQUESTS;
+  return entry.count <= max;
 };
 
-export const rateLimitModeration = (request: Request, actorId: string) => {
-  const key = `mod:${actorId}`;
+const rateLimitMemoryModeration = (key: string, windowMs: number, max: number) => {
   const now = Date.now();
   const entry = moderationStore.get(key);
 
-  if (!entry || now - entry.startedAt > MOD_WINDOW_MS) {
+  if (!entry || now - entry.startedAt > windowMs) {
     moderationStore.set(key, { count: 1, startedAt: now });
     return true;
   }
@@ -75,5 +75,50 @@ export const rateLimitModeration = (request: Request, actorId: string) => {
   entry.count += 1;
   moderationStore.set(key, entry);
 
-  return entry.count <= MOD_MAX_REQUESTS;
+  return entry.count <= max;
+};
+
+const rateLimitRedis = async (
+  key: string,
+  windowMs: number,
+  max: number
+) => {
+  if (!redisReady || !redis) {
+    return null;
+  }
+
+  try {
+    const count = await redis.incr(key);
+    if (count === 1) {
+      await redis.pexpire(key, windowMs);
+    } else {
+      const ttl = await redis.pttl(key);
+      if (ttl < 0) {
+        await redis.pexpire(key, windowMs);
+      }
+    }
+    return count <= max;
+  } catch {
+    return null;
+  }
+};
+
+export const rateLimit = async (request: Request, keyOverride?: string) => {
+  const key = `rate:${keyOverride ?? getClientIp(request)}`;
+  const redisResult = await rateLimitRedis(key, WINDOW_MS, MAX_REQUESTS);
+  if (redisResult !== null) {
+    return redisResult;
+  }
+
+  return rateLimitMemory(key, WINDOW_MS, MAX_REQUESTS);
+};
+
+export const rateLimitModeration = async (request: Request, actorId: string) => {
+  const key = `rate:mod:${actorId}`;
+  const redisResult = await rateLimitRedis(key, MOD_WINDOW_MS, MOD_MAX_REQUESTS);
+  if (redisResult !== null) {
+    return redisResult;
+  }
+
+  return rateLimitMemoryModeration(key, MOD_WINDOW_MS, MOD_MAX_REQUESTS);
 };

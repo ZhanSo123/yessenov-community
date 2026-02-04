@@ -10,8 +10,6 @@ datasource db {
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
-  passwordHash  String?
-  phoneE164     String?   @unique
   username      String?   @unique
   usernameLower String?   @unique
   createdAt     DateTime  @default(now())
@@ -19,7 +17,6 @@ model User {
   image         String?
   name          String?
   displayName   String?
-  age           Int?
   faculty       String?
   course        Int?
   bio           String?
@@ -33,7 +30,6 @@ model User {
   shadowBannedAt DateTime?
   shadowBanReason String?
   accounts      Account[]
-  comments      Comment[]
   deletedPosts  Post[]    @relation("PostsDeletedBy")
   followers     Follow[]  @relation("Follower")
   following     Follow[]  @relation("Following")
@@ -47,13 +43,15 @@ model User {
   sessions      Session[]
   auditLogs     AuditLog[]
   feedback      Feedback[]
-  votes         Vote[]
   notifications Notification[]
   notificationsAsActor Notification[] @relation("NotificationActor")
   conversations ConversationParticipant[]
   messages      Message[]
   errorLogs     ErrorLog[]
   resolvedErrorLogs ErrorLog[] @relation("ErrorResolvedBy")
+
+  @@index([bannedUntil])
+  @@index([shadowBannedAt])
 }
 
 model Community {
@@ -87,7 +85,6 @@ model Post {
   deletedAt   DateTime?
   deletedById String?
   deleteReason String?
-  comments    Comment[]
   likes       Like[]
   reports     Report[]
   community   Community? @relation(fields: [communityId], references: [id])
@@ -107,32 +104,6 @@ model Post {
   @@index([deletedAt])
   @@index([deletedAt, createdAt])
   @@index([authorId, deletedAt])
-}
-
-model Comment {
-  id              Int       @id @default(autoincrement())
-  postId          Int
-  authorId        String
-  parentCommentId Int?
-  content         String
-  score           Int       @default(0)
-  createdAt       DateTime  @default(now())
-  author          User      @relation(fields: [authorId], references: [id])
-  parentComment   Comment?  @relation("CommentToComment", fields: [parentCommentId], references: [id])
-  replies         Comment[] @relation("CommentToComment")
-  post            Post      @relation(fields: [postId], references: [id])
-}
-
-model Vote {
-  id         Int        @id @default(autoincrement())
-  userId     String
-  targetType TargetType
-  targetId   Int
-  value      Int
-  createdAt  DateTime   @default(now())
-  user       User       @relation(fields: [userId], references: [id])
-
-  @@unique([userId, targetType, targetId])
 }
 
 model Notification {
@@ -250,6 +221,7 @@ model Report {
 
   @@unique([postId, reporterId])
   @@index([status, createdAt])
+  @@index([status, severity, createdAt])
 }
 
 model ModerationAction {
@@ -266,6 +238,7 @@ model ModerationAction {
 
   @@index([createdAt])
   @@index([targetType, targetId])
+  @@index([source, createdAt])
 }
 
 model CommunityMember {
@@ -280,7 +253,6 @@ model CommunityMember {
   @@unique([communityId, userId])
   @@index([communityId])
   @@index([userId])
-  @@map("CommunityModerator")
 }
 
 model Appeal {
@@ -336,18 +308,6 @@ model ErrorLog {
   @@index([route, createdAt])
 }
 
-model PhoneOtp {
-  id         String   @id @default(cuid())
-  phoneE164  String
-  codeHash   String
-  createdAt  DateTime @default(now())
-  expiresAt  DateTime
-  attempts   Int      @default(0)
-  consumedAt DateTime?
-
-  @@index([phoneE164, createdAt])
-}
-
 model AuditLog {
   id         String   @id @default(cuid())
   actorId    String
@@ -364,6 +324,37 @@ model AuditLog {
   @@index([createdAt])
   @@index([actorId, createdAt])
   @@index([targetType, targetId])
+}
+
+model Job {
+  id          String    @id @default(cuid())
+  type        String
+  payload     Json
+  status      JobStatus @default(PENDING)
+  runAt       DateTime  @default(now())
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5)
+  lockedAt    DateTime?
+  lockedBy    String?
+  lastError   String?  @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  logs        JobLog[]
+
+  @@index([status, runAt])
+  @@index([lockedAt])
+  @@index([type, status, runAt])
+}
+
+model JobLog {
+  id        String    @id @default(cuid())
+  jobId     String
+  status    JobStatus
+  message   String?
+  createdAt DateTime  @default(now())
+  job       Job       @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, createdAt])
 }
 
 model Account {
@@ -403,11 +394,6 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-enum TargetType {
-  POST
-  COMMENT
-}
-
 enum Role {
   USER
   TEACHER
@@ -437,8 +423,6 @@ enum CommunityMemberRole {
   MEMBER
   MOD
   OWNER
-
-  @@map("CommunityModRole")
 }
 
 enum CommunityType {
@@ -452,4 +436,11 @@ enum AppealStatus {
   OPEN
   APPROVED
   DENIED
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
 }

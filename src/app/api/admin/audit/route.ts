@@ -1,11 +1,10 @@
-import { type Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { requireRoleApi } from "@/lib/auth";
-import { buildCursorString, parseCursorString } from "@/lib/pagination";
-import { prisma } from "@/lib/prisma";
+import { parseCursorString } from "@/lib/pagination";
 import { PaginationSchema } from "@/lib/validators";
+import { AdminAuditService } from "@/services/admin-audit-service";
 
 export const runtime = "nodejs";
 
@@ -39,75 +38,38 @@ export async function GET(request: NextRequest) {
       return apiError("BAD_REQUEST", 400);
     }
 
-    const filters: Prisma.AuditLogWhereInput[] = [];
-
-    if (targetType) {
-      filters.push({ targetType });
-    }
-
-    if (query) {
-      filters.push({
-        OR: [
-          { action: { contains: query, mode: "insensitive" } },
-          { actor: { email: { contains: query, mode: "insensitive" } } },
-          { actor: { username: { contains: query, mode: "insensitive" } } },
-        ],
-      });
-    }
-
+    let fromDate: Date | null = null;
     if (fromParam) {
-      const fromDate = new Date(fromParam);
+      fromDate = new Date(fromParam);
       if (Number.isNaN(fromDate.getTime())) {
         return apiError("BAD_REQUEST", 400);
       }
-      filters.push({ createdAt: { gte: fromDate } });
     }
 
+    let toDate: Date | null = null;
     if (toParam) {
-      const toDate = new Date(toParam);
+      toDate = new Date(toParam);
       if (Number.isNaN(toDate.getTime())) {
         return apiError("BAD_REQUEST", 400);
       }
-      filters.push({ createdAt: { lte: toDate } });
     }
 
-    if (cursor) {
-      filters.push({
-        OR:
-          sortDirection === "asc"
-            ? [
-                { createdAt: { gt: cursor.createdAt } },
-                { createdAt: cursor.createdAt, id: { gt: cursor.id } },
-              ]
-            : [
-                { createdAt: { lt: cursor.createdAt } },
-                { createdAt: cursor.createdAt, id: { lt: cursor.id } },
-              ],
-      });
-    }
-
-    const logs = await prisma.auditLog.findMany({
-      where: filters.length ? { AND: filters } : undefined,
-      orderBy: [
-        { createdAt: sortDirection },
-        { id: sortDirection },
-      ],
-      take: limit + 1,
-      include: {
-        actor: { select: { id: true, email: true, username: true, name: true } },
-      },
+    const service = new AdminAuditService();
+    const result = await service.listLogs({
+      targetType,
+      query,
+      sortDirection,
+      fromDate,
+      toDate,
+      limit,
+      cursor,
     });
 
-    const hasMore = logs.length > limit;
-    const sliced = hasMore ? logs.slice(0, limit) : logs;
-    const nextCursor = hasMore
-      ? buildCursorString(
-          sliced[sliced.length - 1].createdAt,
-          sliced[sliced.length - 1].id
-        )
-      : null;
+    if (!result.ok) {
+      return apiError(result.code, result.status);
+    }
 
-    return apiSuccess({ data: sliced, nextCursor });
+    return apiSuccess(result.payload);
   } catch (error) {
     if (error instanceof Response) {
       return error;

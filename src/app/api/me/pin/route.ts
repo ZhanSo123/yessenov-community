@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 
-import { auth } from "@/auth";
 import { apiError, apiSuccess } from "@/lib/api-errors";
-import { prisma } from "@/lib/prisma";
+import { requireOnboardedUserApi } from "@/lib/auth";
 import { PinPostSchema } from "@/lib/validators";
+import { MeProfileService } from "@/services/me-profile-service";
 
 export const runtime = "nodejs";
 
@@ -21,46 +21,18 @@ export async function POST(request: NextRequest) {
       return apiError("BAD_REQUEST", 400);
     }
 
-    const session = await auth();
-    if (!session?.user?.id) {
-      return apiError("UNAUTHORIZED", 401);
-    }
+    const user = await requireOnboardedUserApi();
 
     const { postId } = parsed.data;
 
-    if (postId === null) {
-      const updated = await prisma.user.update({
-        where: { id: session.user.id },
-        data: { pinnedPostId: null },
-        select: { pinnedPostId: true },
-      });
-      return apiSuccess({ data: updated });
+    const service = new MeProfileService();
+    const result = await service.updatePinnedPost({ user, postId });
+
+    if (!result.ok) {
+      return apiError(result.code, result.status, result.message ? { message: result.message } : undefined);
     }
 
-    const post = await prisma.post.findUnique({
-      where: { id: postId },
-      select: { id: true, authorId: true, replyToId: true, deletedAt: true },
-    });
-
-    if (!post) {
-      return apiError("NOT_FOUND", 404);
-    }
-
-    if (post.authorId !== session.user.id) {
-      return apiError("FORBIDDEN", 403);
-    }
-
-    if (post.replyToId !== null || post.deletedAt) {
-      return apiError("BAD_REQUEST", 400, { message: "INVALID_PIN" });
-    }
-
-    const updated = await prisma.user.update({
-      where: { id: session.user.id },
-      data: { pinnedPostId: postId },
-      select: { pinnedPostId: true },
-    });
-
-    return apiSuccess({ data: updated });
+    return apiSuccess(result.payload);
   } catch (error) {
     if (error instanceof Response) {
       return error;

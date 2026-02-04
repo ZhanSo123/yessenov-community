@@ -1,11 +1,10 @@
-import { type Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
-import { canModerate, getCommunityScope, requireUserApi } from "@/lib/auth";
-import { buildCursorString, parseCursorString } from "@/lib/pagination";
-import { prisma } from "@/lib/prisma";
+import { requireUserApi } from "@/lib/auth";
+import { parseCursorString } from "@/lib/pagination";
 import { PaginationSchema } from "@/lib/validators";
+import { AdminAppealService } from "@/services/admin-appeal-service";
 
 export const runtime = "nodejs";
 
@@ -14,12 +13,6 @@ const DEFAULT_LIMIT = 50;
 export async function GET(request: NextRequest) {
   try {
     const actor = await requireUserApi();
-    const scope = await getCommunityScope(actor);
-    const communityIds = scope?.map((item) => item.communityId) ?? null;
-
-    if (!canModerate(actor) && (!communityIds || communityIds.length === 0)) {
-      return apiError("FORBIDDEN", 403);
-    }
 
     const { searchParams } = new URL(request.url);
     const statusParam = searchParams.get("status");
@@ -45,150 +38,41 @@ export async function GET(request: NextRequest) {
       return apiError("BAD_REQUEST", 400);
     }
 
-    const whereFilters: Prisma.AppealWhereInput[] = [];
-
+    let status: "OPEN" | "APPROVED" | "DENIED" | null = null;
     if (statusParam) {
       if (!["OPEN", "APPROVED", "DENIED"].includes(statusParam)) {
         return apiError("BAD_REQUEST", 400);
       }
-      whereFilters.push({ status: statusParam as "OPEN" | "APPROVED" | "DENIED" });
+      status = statusParam as "OPEN" | "APPROVED" | "DENIED";
     }
 
-    if (query) {
-      whereFilters.push({
-        OR: [
-          { reason: { contains: query, mode: "insensitive" } },
-          { user: { email: { contains: query, mode: "insensitive" } } },
-          { user: { username: { contains: query, mode: "insensitive" } } },
-        ],
-      });
+    const fromDate = fromParam ? new Date(fromParam) : null;
+    if (fromParam && Number.isNaN(fromDate?.getTime() ?? NaN)) {
+      return apiError("BAD_REQUEST", 400);
     }
 
-    if (fromParam) {
-      const fromDate = new Date(fromParam);
-      if (Number.isNaN(fromDate.getTime())) {
-        return apiError("BAD_REQUEST", 400);
-      }
-      whereFilters.push({ createdAt: { gte: fromDate } });
+    const toDate = toParam ? new Date(toParam) : null;
+    if (toParam && Number.isNaN(toDate?.getTime() ?? NaN)) {
+      return apiError("BAD_REQUEST", 400);
     }
 
-    if (toParam) {
-      const toDate = new Date(toParam);
-      if (Number.isNaN(toDate.getTime())) {
-        return apiError("BAD_REQUEST", 400);
-      }
-      whereFilters.push({ createdAt: { lte: toDate } });
-    }
-
-    if (cursor) {
-      whereFilters.push({
-        OR:
-          sortDirection === "asc"
-            ? [
-                { createdAt: { gt: cursor.createdAt } },
-                { createdAt: cursor.createdAt, id: { gt: cursor.id } },
-              ]
-            : [
-                { createdAt: { lt: cursor.createdAt } },
-                { createdAt: cursor.createdAt, id: { lt: cursor.id } },
-              ],
-      });
-    }
-
-    if (communityIds) {
-      whereFilters.push({ targetType: "POST" });
-    }
-
-    const appeals = await prisma.appeal.findMany({
-      where: whereFilters.length ? { AND: whereFilters } : undefined,
-      orderBy: [
-        { createdAt: sortDirection },
-        { id: sortDirection },
-      ],
-      take: limit + 1,
-      include: {
-        user: { select: { id: true, email: true, username: true, name: true } },
-        resolvedBy: { select: { id: true, email: true, username: true, name: true } },
-      },
+    const service = new AdminAppealService();
+    const result = await service.listAppeals({
+      actor: { id: actor.id, role: actor.role },
+      status,
+      query: query ?? null,
+      sortDirection,
+      fromDate,
+      toDate,
+      limit,
+      cursor,
     });
 
-    const postIds = appeals
-      .filter((appeal) => appeal.targetType === "POST")
-      .map((appeal) => Number(appeal.targetId))
-      .filter((id) => !Number.isNaN(id));
-
-    const posts = postIds.length
-      ? await prisma.post.findMany({
-          where: {
-            id: { in: postIds },
-            ...(communityIds ? { communityId: { in: communityIds } } : {}),
-          },
-          select: {
-            id: true,
-            content: true,
-            communityId: true,
-            author: { select: { id: true, username: true, name: true } },
-          },
-        })
-      : [];
-
-    const postMap = new Map(posts.map((post) => [post.id, post]));
-
-    let filtered = appeals;
-    if (communityIds) {
-      filtered = appeals.filter((appeal) => {
-        if (appeal.targetType !== "POST") {
-          return false;
-        }
-        const postId = Number(appeal.targetId);
-        return postMap.has(postId);
-      });
+    if (!result.ok) {
+      return apiError(result.code, result.status);
     }
 
-    const userTargetIds = filtered
-      .filter((appeal) => appeal.targetType.startsWith("USER"))
-      .map((appeal) => appeal.targetId);
-
-    const targetUsers = userTargetIds.length
-      ? await prisma.user.findMany({
-          where: { id: { in: userTargetIds } },
-          select: {
-            id: true,
-            email: true,
-            username: true,
-            role: true,
-            bannedUntil: true,
-            shadowBannedAt: true,
-          },
-        })
-      : [];
-
-    const targetUserMap = new Map(
-      targetUsers.map((user) => [user.id, user])
-    );
-
-    const hasMore = filtered.length > limit;
-    const sliced = hasMore ? filtered.slice(0, limit) : filtered;
-    const nextCursor = hasMore
-      ? buildCursorString(
-          sliced[sliced.length - 1].createdAt,
-          sliced[sliced.length - 1].id
-        )
-      : null;
-
-    return apiSuccess({
-      data: sliced.map((appeal) => ({
-        ...appeal,
-        targetPost:
-          appeal.targetType === "POST"
-            ? postMap.get(Number(appeal.targetId)) ?? null
-            : null,
-        targetUser: appeal.targetType.startsWith("USER")
-          ? targetUserMap.get(appeal.targetId) ?? null
-          : null,
-      })),
-      nextCursor,
-    });
+    return apiSuccess(result.payload);
   } catch (error) {
     if (error instanceof Response) {
       return error;

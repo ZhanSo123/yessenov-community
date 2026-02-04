@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { apiError } from "@/lib/api-errors";
 import { getAuthSession } from "@/lib/auth-session";
 import { isUniqueConstraintError } from "@/lib/prisma-errors";
-import { prisma } from "@/lib/prisma";
+import { CommunityMemberRepository } from "@/repositories/community-member-repository";
+import { UserRepository } from "@/repositories/user-repository";
 
 type RequireUserOptions = {
   mode?: "api" | "page";
@@ -26,10 +27,13 @@ const ROLE_ORDER: Record<Role, number> = {
   ADMIN: 2,
 };
 
+const userRepo = new UserRepository();
+const communityMemberRepo = new CommunityMemberRepository();
+
 const createUserFromSession = async (sessionUser: SessionUser) => {
   const email = sessionUser.email?.toLowerCase() ?? "";
   try {
-    return await prisma.user.create({
+    return await userRepo.create({
       data: {
         email,
         name: sessionUser.name ?? null,
@@ -41,7 +45,7 @@ const createUserFromSession = async (sessionUser: SessionUser) => {
       throw error;
     }
 
-    const existing = await prisma.user.findUnique({
+    const existing = await userRepo.findUnique({
       where: { email },
     });
     if (existing) {
@@ -53,7 +57,7 @@ const createUserFromSession = async (sessionUser: SessionUser) => {
 };
 
 const ensureUsernameLower = async (userId: string, username: string) => {
-  await prisma.user.update({
+  await userRepo.update({
     where: { id: userId },
     data: { usernameLower: username.toLowerCase() },
   });
@@ -61,7 +65,7 @@ const ensureUsernameLower = async (userId: string, username: string) => {
 
 const upsertUserFromSession = async (sessionUser: SessionUser) => {
   if (sessionUser.id) {
-    const existing = await prisma.user.findUnique({
+    const existing = await userRepo.findUnique({
       where: { id: sessionUser.id },
     });
 
@@ -74,7 +78,7 @@ const upsertUserFromSession = async (sessionUser: SessionUser) => {
         existing.name !== sessionUser.name ||
         existing.image !== sessionUser.image
       ) {
-        return prisma.user.update({
+        return userRepo.update({
           where: { id: existing.id },
           data: {
             name: sessionUser.name ?? existing.name,
@@ -92,7 +96,7 @@ const upsertUserFromSession = async (sessionUser: SessionUser) => {
     throw apiError("UNAUTHORIZED", 401);
   }
 
-  const existing = await prisma.user.findFirst({
+  const existing = await userRepo.findFirst({
     where: { email: { equals: email, mode: "insensitive" } },
   });
 
@@ -108,7 +112,7 @@ const upsertUserFromSession = async (sessionUser: SessionUser) => {
     existing.name !== sessionUser.name ||
     existing.image !== sessionUser.image
   ) {
-    return prisma.user.update({
+    return userRepo.update({
       where: { id: existing.id },
       data: {
         name: sessionUser.name ?? existing.name,
@@ -142,6 +146,19 @@ export async function requireUserApi() {
   return upsertUserFromSession(sessionUser);
 }
 
+export async function requireInvitedUserApi() {
+  const user = await requireUserApi();
+  ensureInviteAccepted(user);
+  return user;
+}
+
+export async function requireOnboardedUserApi() {
+  const user = await requireUserApi();
+  ensureInviteAccepted(user);
+  ensureOnboarded(user);
+  return user;
+}
+
 export const canModerate = (user: { role: Role }) =>
   user.role === "MOD" || user.role === "ADMIN";
 
@@ -151,7 +168,7 @@ export const getCommunityMemberRole = async (
   communityId: number,
   userId: string
 ) => {
-  const record = await prisma.communityMember.findUnique({
+  const record = await communityMemberRepo.findUnique({
     where: {
       communityId_userId: {
         communityId,
@@ -180,7 +197,7 @@ export const getCommunityScope = async (user: { id: string; role: Role }) => {
     return null;
   }
 
-  const records = await prisma.communityMember.findMany({
+  const records = await communityMemberRepo.findMany({
     where: { userId: user.id, role: { in: ["MOD", "OWNER"] } },
     select: { communityId: true, role: true },
   });

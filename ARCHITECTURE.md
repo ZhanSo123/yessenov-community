@@ -10,7 +10,7 @@ Yessenov Community — студенческая социальная сеть: �
 - React 19.2.3
 - TypeScript 5
 - Tailwind CSS 4 + PostCSS
-- next/font (Geist)
+- next/font (Manrope)
 
 ### Backend
 - Next.js Route Handlers (`src/app/api/*`)
@@ -21,14 +21,16 @@ Yessenov Community — студенческая социальная сеть: �
 ### База данных
 - PostgreSQL через Prisma (`DATABASE_URL`)
 - Миграции Prisma (`prisma/migrations`)
+  - Внутренняя очередь задач хранится в таблице `Job`
 
 ### Инфраструктура и tooling
 - Vercel (скрипт `scripts/vercel-build.mjs` с `prisma migrate deploy` + `next build`)
 - ESLint 9
 - Vitest 2.1.9
-
-### Дополнительно
-- Supabase JS SDK (заготовка клиента в `src/lib/supabase.ts` — используется при наличии `NEXT_PUBLIC_SUPABASE_URL` и `NEXT_PUBLIC_SUPABASE_ANON_KEY`)
+- Redis (внутренний/self‑hosted через `REDIS_URL`)
+- Внутренняя очередь задач (DB‑backed) через `JOB_QUEUE_PROVIDER=postgres`
+- Event bus через очередь (`EVENT_BUS_PROVIDER=queue`) для async событий
+- Realtime (SSE + Redis pub/sub) через `REALTIME_PROVIDER=redis`
 
 ## 3) Архитектурная схема
 
@@ -41,10 +43,14 @@ Yessenov Community — студенческая социальная сеть: �
     |
     |  Route Handlers: /api/*  (Node.js runtime)
     v
-[ Service Layer (src/lib) ]
-    |  - auth, rate-limit, abuse rules
-    |  - notifications, audit-log
-    |  - validators, pagination
+[ Service Layer (src/services) ]
+    |
+    v
+[ Repositories (src/repositories) ]
+    |
+    v
+[ Infrastructure (src/infrastructure) ]
+    |  - cache, jobs, events, search, realtime (adapters)
     v
 [ Prisma Client ]
     |
@@ -52,7 +58,7 @@ Yessenov Community — студенческая социальная сеть: �
 [ PostgreSQL ]
 ```
 
-Ключевая идея: вся серверная логика находится в Route Handlers и общих `lib`‑модулях. UI строится на App Router, часть компонентов — client‑компоненты.
+Ключевая идея: Route Handlers тонкие и делегируют бизнес‑логику в `src/services`. Доступ к данным изолирован в `src/repositories`, а инфраструктура (кэш, очереди, события) — в `src/infrastructure`. Общие вспомогательные вещи остаются в `src/lib`.
 
 ## 4) Структура репозитория
 
@@ -69,7 +75,11 @@ Yessenov Community — студенческая социальная сеть: �
 /src
   /app            # маршруты (App Router) + API routes
   /components     # UI компоненты
-  /lib            # доменная/серверная логика
+  /domain         # контракты домена (events/jobs/cache/search/realtime)
+  /infrastructure # контейнер + адаптеры (in-memory/legacy)
+  /repositories   # доступ к данным (Prisma)
+  /services       # бизнес‑логика (use cases)
+  /lib            # общие серверные утилиты
   /types          # типы (расширения NextAuth)
 /tests            # Vitest
 ```
@@ -92,14 +102,16 @@ Yessenov Community — студенческая социальная сеть: �
 Группы и назначение:
 
 - **Auth**: `/api/auth/[...nextauth]`, `/api/auth/onboarding`
-- **Feed/Posts**: `/api/feed`, `/api/posts`, `/api/posts/[id]`, `/api/posts/reply`, `/api/posts/repost`, `/api/posts/[id]/replies`
+- **Feed/Posts**: `/api/feed`, `/api/community-feed`, `/api/posts`, `/api/posts/[id]`, `/api/posts/reply`, `/api/posts/repost`, `/api/posts/[id]/replies`
 - **Likes/Follow**: `/api/likes/toggle`, `/api/follow/toggle`
-- **Users**: `/api/users/[username]`, `/api/users/[username]/posts`, `/api/users/[username]/followers`, `/api/users/[username]/following`, `/api/me/profile`
+- **Users**: `/api/users/[username]`, `/api/users/[username]/posts`, `/api/users/[username]/followers`, `/api/users/[username]/following`, `/api/users/[username]/replies`
 - **Communities**: `/api/communities`
 - **Notifications**: `/api/notifications`, `/api/notifications/unread-count`, `/api/notifications/mark-read`, `/api/notifications/mark-all-read`
+- **Realtime**: `/api/realtime/stream` (SSE)
+  - каналы: `user:<id>`, `moderation:system` (только MOD/ADMIN)
 - **Search**: `/api/search/users`
 - **DM**: `/api/dm/inbox`, `/api/dm/start`, `/api/dm/[id]`, `/api/dm/[id]/send`, `/api/dm/[id]/read`
-- **Reports/Appeals**: `/api/reports`, `/api/appeals`
+- **Reports/Appeals**: `/api/admin/reports`, `/api/admin/appeals`
 - **Feedback**: `/api/feedback`
 - **Admin**: `/api/admin/*` (модерация, аудит, метрики, экспорт, очереди)
 - **Dev**: `/api/dev/*` (health/runtime/auth/debug)
@@ -111,15 +123,15 @@ Yessenov Community — студенческая социальная сеть: �
 
 - **User**: профиль, роли, бан/шадоубан, онбординг
 - **Post**: посты и ответы (ответы хранятся как `Post` с `replyToId`)
-- **Comment**: отдельная модель комментариев
-- **Community** и **CommunityModerator**
+- **Community** и **CommunityMember** (роли MEMBER/MOD/OWNER)
 - **Like**, **Follow**
 - **Notification** (типы: REPLY, LIKE, FOLLOW, MENTION)
 - **Conversation**, **ConversationParticipant**, **Message** (личные сообщения)
 - **Report**, **Appeal** (модерация)
-- **AuditLog**, **ModerationAction**, **Feedback**, **PhoneOtp**
+- **AuditLog**, **ModerationAction**, **Feedback**
 
 Индексы и уникальные ограничения заданы в `prisma/schema.prisma` для ленты, лайков, подписок и модерации.
+Также есть SQL‑миграции с частичными индексами под фиды/профили (для ускорения `replyToId IS NULL` / `deletedAt IS NULL` запросов).
 
 ## 7) Аутентификация и сессии
 - Auth.js / NextAuth (Google OAuth)
@@ -129,19 +141,23 @@ Yessenov Community — студенческая социальная сеть: �
 - `src/types/next-auth.d.ts` — расширение типов session/user
 
 ## 8) Безопасность и модерация
-- **Rate limiting**: `src/lib/rate-limit.ts` (in‑memory, для продакшена нужен shared‑store)
+- **Rate limiting**: `src/lib/rate-limit.ts` (Redis при наличии `REDIS_URL`, иначе in‑memory)
 - **Anti‑abuse**: `src/lib/abuse-rules.ts`, `src/lib/abuse-tracker.ts`
+- **Auto‑abuse scan**: `abuse.scan.post` job (content heuristics, пишет `ModerationAction`)
 - **Bans/Shadow bans** и роль‑бэйзд доступ (`Role`: USER/MOD/ADMIN)
 - **Audit log**: `src/lib/audit-log.ts` + `AuditLog` модель
+- **Очереди**: `Job` + `JobLog` модели (retry/backoff, lock TTL)
 
 ## 9) Уведомления
 - `src/lib/notifications.ts` — создание уведомлений, дедупликация LIKE/FOLLOW, @mention
 - Уведомления хранятся в `Notification` и доступны через `/api/notifications*`
+- @mention и авто‑модерация обрабатываются через event bus (async)
 
 ## 10) Observability и диагностика
 - `src/lib/api-metrics.ts` — метрики запросов (duration, status, dbQueryCount)
 - `GET /api/dev/health` — проверка подключения Prisma/DB (только не‑prod)
 - `GET /api/dev/runtime` — runtime/host/env
+- `src/lib/error-log.ts` — лог ошибок в БД с авто‑очисткой по retention
 
 ## 11) Конфигурация окружения
 Базовые переменные:
@@ -160,8 +176,15 @@ GOOGLE_CLIENT_SECRET=...
 ```
 INVITE_ONLY=true
 INVITE_CODES=alpha1,alpha2,alpha3
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+```
+
+Дополнительно (инфраструктура):
+
+```
+REDIS_URL=redis://user:pass@host:6379/0
+JOB_QUEUE_PROVIDER=postgres
+EVENT_BUS_PROVIDER=queue
+REALTIME_PROVIDER=redis
 ```
 
 ## 12) Тесты
@@ -180,7 +203,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 - есть дедупликация для лайков и подписок
 
 ### Модерация
-- репорты создаются в `/api/reports`
+- репорты создаются в `/api/admin/reports`
 - админ/модератор управляет через `/api/admin/*`
 - аудит пишется в `AuditLog`
 

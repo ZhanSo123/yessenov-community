@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 
+import { useI18n } from "@/lib/i18n/useI18n";
 type FollowUser = {
   id: string;
   username: string | null;
@@ -30,6 +31,7 @@ type FollowListClientProps = {
 
 export default function FollowListClient({ username, mode }: FollowListClientProps) {
   const { data: session, status } = useSession();
+  const { t } = useI18n();
   const viewerId = session?.user?.id ?? null;
   const isUnauthed = status === "unauthenticated";
 
@@ -48,7 +50,7 @@ export default function FollowListClient({ username, mode }: FollowListClientPro
           credentials: "include",
         });
         if (!response.ok) {
-          throw new Error("Не удалось загрузить список.");
+          throw new Error(t("profile.overlay.error"));
         }
 
         const payload = (await response.json()) as FollowListResponse;
@@ -60,7 +62,7 @@ export default function FollowListClient({ username, mode }: FollowListClientPro
           setError(
             fetchError instanceof Error
               ? fetchError.message
-              : "Ошибка загрузки"
+              : t("profile.error.load_generic")
           );
         }
       } finally {
@@ -136,12 +138,16 @@ export default function FollowListClient({ username, mode }: FollowListClientPro
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-12">
         <header>
           <h1 className="text-3xl font-semibold">
-            {mode === "followers" ? "Подписчики" : "Подписки"}
+            {mode === "followers"
+              ? t("profile.overlay.followers")
+              : t("profile.overlay.following")}
           </h1>
           <p className="mt-2 text-sm text-slate-500">@{username}</p>
         </header>
 
-        {loading ? <p className="text-sm text-slate-500">Загрузка...</p> : null}
+        {loading ? (
+          <p className="text-sm text-slate-500">{t("profile.overlay.loading")}</p>
+        ) : null}
         {error ? (
           <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
             {error}
@@ -150,17 +156,18 @@ export default function FollowListClient({ username, mode }: FollowListClientPro
 
         <section className="space-y-3">
           {items.map((item) => {
-            const displayName = item.displayName || item.username || "User";
+            const displayName =
+              item.displayName || item.username || t("common.user");
             const handle = item.username ? `@${item.username}` : "@user";
             const isSelf = viewerId && item.id === viewerId;
             const canToggle = Boolean(item.username);
             const label = isUnauthed
-              ? "Войти"
+              ? t("user_search.action.sign_in")
               : item.isFriend
-              ? "Друзья"
+              ? t("profile.overlay.friends")
               : item.isFollowing
-              ? "Вы подписаны"
-              : "Подписаться";
+              ? t("profile.overlay.following_state")
+              : t("profile.overlay.follow");
 
             return (
               <div
@@ -176,7 +183,9 @@ export default function FollowListClient({ username, mode }: FollowListClientPro
                     />
                   ) : (
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-200 text-sm font-semibold text-slate-600">
-                      {(displayName || "U").slice(0, 1).toUpperCase()}
+                      {(displayName || t("common.user"))
+                        .slice(0, 1)
+                        .toUpperCase()}
                     </div>
                   )}
                   <div>
@@ -190,7 +199,7 @@ export default function FollowListClient({ username, mode }: FollowListClientPro
                 <div className="flex items-center gap-2">
                   {item.isFriend ? (
                     <span className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-700">
-                      Друзья
+                      {t("profile.overlay.friends")}
                     </span>
                   ) : null}
                   {!isSelf ? (

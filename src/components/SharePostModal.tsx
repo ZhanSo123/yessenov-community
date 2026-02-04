@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { type PostWithMeta } from "@/lib/post-types";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 type SharePostModalProps = {
   post: PostWithMeta;
@@ -24,6 +25,7 @@ type SearchResponse = {
 };
 
 export default function SharePostModal({ post, open, onClose }: SharePostModalProps) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [note, setNote] = useState("");
   const [items, setItems] = useState<SearchItem[]>([]);
@@ -75,7 +77,7 @@ export default function SharePostModal({ post, open, onClose }: SharePostModalPr
           credentials: "include",
         });
         if (!response.ok) {
-          throw new Error("Не удалось загрузить пользователей.");
+          throw new Error(t("share.error.load_users"));
         }
         const payload = (await response.json()) as SearchResponse;
         setItems(payload.items ?? []);
@@ -83,7 +85,7 @@ export default function SharePostModal({ post, open, onClose }: SharePostModalPr
         setError(
           fetchError instanceof Error
             ? fetchError.message
-            : "Ошибка загрузки"
+            : t("share.error.load_generic")
         );
       } finally {
         setLoading(false);
@@ -199,7 +201,7 @@ export default function SharePostModal({ post, open, onClose }: SharePostModalPr
       });
 
       if (!start.ok) {
-        throw new Error("Не удалось открыть диалог.");
+        throw new Error(t("share.error.start_dialog"));
       }
 
       const startPayload = (await start.json()) as {
@@ -207,12 +209,14 @@ export default function SharePostModal({ post, open, onClose }: SharePostModalPr
       };
       const conversationId = startPayload.data?.conversationId;
       if (!conversationId) {
-        throw new Error("Не удалось открыть диалог.");
+        throw new Error(t("share.error.start_dialog"));
       }
 
       const link = `${window.location.origin}/p/${post.id}`;
       const trimmedNote = note.trim();
-      const message = trimmedNote ? `${trimmedNote}\nПост: ${link}` : `Пост: ${link}`;
+      const message = trimmedNote
+        ? `${trimmedNote}\n${t("share.post_link", { link })}`
+        : t("share.post_link", { link });
 
       const send = await fetch(`/api/dm/${conversationId}/send`, {
         method: "POST",
@@ -222,16 +226,16 @@ export default function SharePostModal({ post, open, onClose }: SharePostModalPr
       });
 
       if (!send.ok) {
-        throw new Error("Не удалось отправить пост.");
+        throw new Error(t("share.error.send_post"));
       }
 
-      setSuccess("Отправлено");
+      setSuccess(t("share.success.sent"));
       setNote("");
     } catch (sendError) {
       setError(
         sendError instanceof Error
           ? sendError.message
-          : "Не удалось отправить"
+          : t("share.error.send_generic")
       );
     } finally {
       setSendingId(null);
@@ -262,7 +266,9 @@ export default function SharePostModal({ post, open, onClose }: SharePostModalPr
     setSuccess("");
     const link = `${window.location.origin}/p/${post.id}`;
     const trimmedNote = note.trim();
-    const message = trimmedNote ? `${trimmedNote}\nПост: ${link}` : `Пост: ${link}`;
+    const message = trimmedNote
+      ? `${trimmedNote}\n${t("share.post_link", { link })}`
+      : t("share.post_link", { link });
 
     try {
       await Promise.all(
@@ -278,7 +284,7 @@ export default function SharePostModal({ post, open, onClose }: SharePostModalPr
           });
 
           if (!start.ok) {
-            throw new Error("Не удалось открыть диалог.");
+            throw new Error(t("share.error.start_dialog"));
           }
 
           const startPayload = (await start.json()) as {
@@ -286,7 +292,7 @@ export default function SharePostModal({ post, open, onClose }: SharePostModalPr
           };
           const conversationId = startPayload.data?.conversationId;
           if (!conversationId) {
-            throw new Error("Не удалось открыть диалог.");
+            throw new Error(t("share.error.start_dialog"));
           }
 
           const send = await fetch(`/api/dm/${conversationId}/send`, {
@@ -297,19 +303,19 @@ export default function SharePostModal({ post, open, onClose }: SharePostModalPr
           });
 
           if (!send.ok) {
-            throw new Error("Не удалось отправить пост.");
+            throw new Error(t("share.error.send_post"));
           }
         })
       );
 
-      setSuccess(`Отправлено (${entries.length})`);
+      setSuccess(t("share.success.sent_many", { count: entries.length }));
       setNote("");
       setSelected({});
     } catch (bulkError) {
       setError(
         bulkError instanceof Error
           ? bulkError.message
-          : "Не удалось отправить"
+          : t("share.error.send_generic")
       );
     } finally {
       setSendingId(null);
@@ -388,7 +394,7 @@ export default function SharePostModal({ post, open, onClose }: SharePostModalPr
         <div className="flex justify-center pb-3">
           <button
             type="button"
-            aria-label="Свайп"
+            aria-label={t("share.sheet_handle_aria")}
             data-handle="sheet-handle"
             className="relative h-2 w-16 rounded-full bg-slate-200"
           >
@@ -396,19 +402,21 @@ export default function SharePostModal({ post, open, onClose }: SharePostModalPr
           </button>
         </div>
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">Переслать</h2>
+          <h2 className="text-lg font-semibold text-slate-900">
+            {t("share.title")}
+          </h2>
         </div>
 
         <div className="mt-4 space-y-3 overflow-y-auto">
           <input
             type="search"
-            placeholder="Кому переслать?"
+            placeholder={t("share.search_placeholder")}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900"
           />
           <textarea
-            placeholder="Добавить сообщение"
+            placeholder={t("share.note_placeholder")}
             value={note}
             onChange={(event) => setNote(event.target.value)}
             className="min-h-[90px] w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900"
@@ -426,15 +434,18 @@ export default function SharePostModal({ post, open, onClose }: SharePostModalPr
           ) : null}
 
           {loading ? (
-            <p className="text-sm text-slate-500">Загрузка...</p>
+            <p className="text-sm text-slate-500">{t("share.loading")}</p>
           ) : items.length === 0 && query.trim() ? (
-            <p className="text-sm text-slate-500">Никого не нашли</p>
+            <p className="text-sm text-slate-500">
+              {t("share.empty_results")}
+            </p>
           ) : null}
 
           {Object.keys(selected).length > 0 ? (
             <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
               {Object.values(selected).map((user) => {
-                const title = user.displayName || user.username || "User";
+                const title =
+                  user.displayName || user.username || t("common.user");
                 return (
                   <button
                     key={user.id}
@@ -463,7 +474,9 @@ export default function SharePostModal({ post, open, onClose }: SharePostModalPr
                 disabled={sendingId === "bulk"}
                 className="bubble-btn-primary ml-auto rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-60 pressable"
               >
-                {sendingId === "bulk" ? "Отправляем..." : "Отправить"}
+                {sendingId === "bulk"
+                  ? t("share.action.sending_bulk")
+                  : t("share.action.send_bulk")}
               </button>
             </div>
           ) : null}
@@ -471,17 +484,22 @@ export default function SharePostModal({ post, open, onClose }: SharePostModalPr
           <div className="max-h-[45vh] space-y-2 overflow-y-auto">
             {!query.trim() ? (
               recentLoading ? (
-                <p className="text-sm text-slate-500">Загрузка последних...</p>
+                <p className="text-sm text-slate-500">
+                  {t("share.recent.loading")}
+                </p>
               ) : recent.length === 0 ? (
-                <p className="text-sm text-slate-500">Нет последних диалогов</p>
+                <p className="text-sm text-slate-500">
+                  {t("share.recent.empty")}
+                </p>
               ) : (
                 <>
                   <p className="text-xs font-semibold text-slate-400">
-                    Последние диалоги
+                    {t("share.recent.title")}
                   </p>
                   <div className="flex gap-3 overflow-x-auto pb-2">
                     {recent.map((item) => {
-                      const title = item.displayName || item.username || "User";
+                      const title =
+                        item.displayName || item.username || t("common.user");
                       const active = Boolean(selected[item.id]);
                       return (
                         <button
@@ -514,7 +532,8 @@ export default function SharePostModal({ post, open, onClose }: SharePostModalPr
                   </div>
 
                   {recent.map((item) => {
-                    const title = item.displayName || item.username || "User";
+                    const title =
+                      item.displayName || item.username || t("common.user");
                     const handle = item.username ? `@${item.username}` : "";
                     const disabled = sendingId !== null && sendingId !== item.id;
                     const active = Boolean(selected[item.id]);
@@ -553,7 +572,9 @@ export default function SharePostModal({ post, open, onClose }: SharePostModalPr
                           </div>
                         </div>
                         <span className="text-xs font-semibold text-[#6495ED]">
-                          {active ? "Выбрано" : "Выбрать"}
+                          {active
+                            ? t("share.action.selected")
+                            : t("share.action.select")}
                         </span>
                       </button>
                     );
@@ -562,7 +583,8 @@ export default function SharePostModal({ post, open, onClose }: SharePostModalPr
               )
             ) : (
               items.map((item) => {
-                const title = item.displayName || item.username || "User";
+                const title =
+                  item.displayName || item.username || t("common.user");
                 const handle = item.username ? `@${item.username}` : "";
                 const disabled = sendingId !== null && sendingId !== item.id;
                 const active = Boolean(selected[item.id]);
@@ -601,7 +623,9 @@ export default function SharePostModal({ post, open, onClose }: SharePostModalPr
                       </div>
                     </div>
                     <span className="text-xs font-semibold text-[#6495ED]">
-                      {active ? "Выбрано" : "Выбрать"}
+                      {active
+                        ? t("share.action.selected")
+                        : t("share.action.select")}
                     </span>
                   </button>
                 );
@@ -611,15 +635,18 @@ export default function SharePostModal({ post, open, onClose }: SharePostModalPr
 
           {!query.trim() ? (
             recommendedLoading ? (
-              <p className="text-sm text-slate-500">Загрузка рекомендаций...</p>
+              <p className="text-sm text-slate-500">
+                {t("share.recommended.loading")}
+              </p>
             ) : recommended.length > 0 ? (
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-slate-400">
-                  Рекомендуемые
+                  {t("share.recommended.title")}
                 </p>
                 <div className="flex gap-3 overflow-x-auto pb-2">
                   {recommended.map((item) => {
-                    const title = item.displayName || item.username || "User";
+                    const title =
+                      item.displayName || item.username || t("common.user");
                     const active = Boolean(selected[item.id]);
                     return (
                       <button

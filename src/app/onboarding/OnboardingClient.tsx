@@ -9,6 +9,7 @@ import {
   INTEREST_SUGGESTIONS,
   suggestInterestsFromProfile,
 } from "@/lib/interests";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 type OnboardingResponse = {
   data?: { username: string; displayName: string | null; bio: string | null };
@@ -55,7 +56,13 @@ export default function OnboardingClient() {
   const searchParams = useSearchParams();
   const { data: session } = useSession();
   const user = session?.user ?? null;
-  const steps = ["Профиль", "Факультет", "Интересы", "Готово"];
+  const { t } = useI18n();
+  const steps = [
+    t("onboarding.steps.profile"),
+    t("onboarding.steps.faculty"),
+    t("onboarding.steps.interests"),
+    t("onboarding.steps.done"),
+  ];
 
   const suggested = useMemo(() => {
     const fromQuery = searchParams.get("u");
@@ -145,28 +152,28 @@ export default function OnboardingClient() {
       if (!response.ok) {
         if (payload?.error === "BAD_REQUEST") {
           if (payload?.message === "INVALID_USERNAME") {
-            setError("Только латиница, цифры и ._");
+            setError(t("onboarding.error.invalid_username"));
           } else {
-            setError("Проверьте данные профиля.");
+            setError(t("onboarding.error.profile_check"));
           }
         } else if (payload?.error === "CONFLICT") {
-          setError("Имя занято.");
+          setError(t("onboarding.error.name_taken"));
         } else if (payload?.error === "UNAUTHORIZED") {
           router.replace("/welcome");
         } else {
-          setError("Не удалось сохранить профиль.");
+          setError(t("onboarding.error.save_failed"));
         }
         return;
       }
 
       if (!payload?.data?.username) {
-        setError("Не удалось сохранить профиль.");
+        setError(t("onboarding.error.save_failed"));
         return;
       }
 
       router.replace("/");
     } catch {
-      setError("Не удалось сохранить профиль.");
+      setError(t("onboarding.error.save_failed"));
     } finally {
       setLoading(false);
     }
@@ -195,7 +202,7 @@ export default function OnboardingClient() {
       return;
     }
     if (current.length >= 10) {
-      setInterestError("Максимум 10 интересов.");
+      setInterestError(t("onboarding.interests.limit_error"));
       return;
     }
     const next = [...current, value];
@@ -207,9 +214,9 @@ export default function OnboardingClient() {
     <div className="min-h-screen bg-white text-slate-900">
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-16">
         <header className="space-y-2">
-          <h1 className="text-3xl font-semibold">Настройка профиля</h1>
+          <h1 className="text-3xl font-semibold">{t("onboarding.title")}</h1>
           <p className="text-sm text-slate-600">
-            4 шага, чтобы попасть в своё сообщество.
+            {t("onboarding.subtitle")}
           </p>
           <div className="flex flex-wrap gap-2 text-xs text-slate-500">
             {steps.map((label, index) => (
@@ -237,7 +244,7 @@ export default function OnboardingClient() {
           {step === 0 ? (
             <div className="mt-4 space-y-4">
               <label className="block text-xs font-semibold text-slate-600">
-                Username
+                {t("onboarding.fields.username")}
                 <input
                   type="text"
                   value={username}
@@ -247,23 +254,23 @@ export default function OnboardingClient() {
                 />
               </label>
               <label className="block text-xs font-semibold text-slate-600">
-                Display name
+                {t("onboarding.fields.display_name")}
                 <input
                   type="text"
                   value={displayName}
                   onChange={(event) => setDisplayName(event.target.value)}
                   className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                  placeholder="Как вас видно в ленте"
+                  placeholder={t("onboarding.placeholders.display_name")}
                 />
               </label>
               <label className="block text-xs font-semibold text-slate-600">
-                Bio
+                {t("onboarding.fields.bio")}
                 <textarea
                   value={bio}
                   onChange={(event) => setBio(event.target.value)}
                   maxLength={160}
                   className="mt-2 min-h-[120px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                  placeholder="Пара строк о себе"
+                  placeholder={t("onboarding.placeholders.bio")}
                 />
               </label>
             </div>
@@ -272,14 +279,14 @@ export default function OnboardingClient() {
           {step === 1 ? (
             <div className="mt-4 space-y-4">
               <label className="block text-xs font-semibold text-slate-600">
-                Факультет
+                {t("onboarding.fields.faculty")}
                 <input
                   type="text"
                   value={faculty}
                   onChange={(event) => setFaculty(event.target.value)}
                   list="faculty-options"
                   className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                  placeholder="Например: FIT, ENG"
+                  placeholder={t("onboarding.placeholders.faculty")}
                 />
               </label>
               <datalist id="faculty-options">
@@ -288,23 +295,22 @@ export default function OnboardingClient() {
                 ))}
               </datalist>
               <label className="block text-xs font-semibold text-slate-600">
-                Курс
+                {t("onboarding.fields.course")}
                 <select
                   value={course}
                   onChange={(event) => setCourse(event.target.value)}
                   className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
                 >
-                  <option value="">Не выбран</option>
+                  <option value="">{t("onboarding.course.none")}</option>
                   {[1, 2, 3, 4, 5, 6].map((value) => (
                     <option key={value} value={value}>
-                      {value} курс
+                      {t("onboarding.course.value", { value })}
                     </option>
                   ))}
                 </select>
               </label>
               <p className="text-xs text-slate-500">
-                Мы автоматически откроем доступ к закрытым сообществам факультета и
-                курса.
+                {t("onboarding.faculty_hint")}
               </p>
             </div>
           ) : null}
@@ -312,7 +318,7 @@ export default function OnboardingClient() {
           {step === 2 ? (
             <div className="mt-4 space-y-4">
               <label className="block text-xs font-semibold text-slate-600">
-                Интересы
+                {t("onboarding.fields.interests")}
                 <input
                   type="text"
                   value={interests}
@@ -321,10 +327,10 @@ export default function OnboardingClient() {
                     setInterestError("");
                   }}
                   className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                  placeholder="AI, спорт, стартапы"
+                  placeholder={t("onboarding.placeholders.interests")}
                 />
                 <span className="mt-1 block text-[11px] text-slate-400">
-                  До 10 интересов, через запятую.
+                  {t("onboarding.interests_hint")}
                 </span>
               </label>
               <div className="flex flex-wrap gap-2">
@@ -357,7 +363,9 @@ export default function OnboardingClient() {
           {step === 3 ? (
             <div className="mt-4 space-y-4 text-sm text-slate-600">
               <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
-                <p className="text-xs uppercase text-slate-400">Проверьте данные</p>
+                <p className="text-xs uppercase text-slate-400">
+                  {t("onboarding.review.title")}
+                </p>
                 <p className="mt-2 font-semibold text-slate-900">
                   @{normalizeUsername(username)}
                 </p>
@@ -365,27 +373,29 @@ export default function OnboardingClient() {
                 {bio ? <p className="mt-2">{bio}</p> : null}
                 {faculty || course ? (
                   <p className="mt-2 text-xs text-slate-500">
-                    {faculty ? `Факультет: ${faculty}` : ""}
+                    {faculty
+                      ? t("onboarding.review.faculty", { faculty })
+                      : ""}
                     {faculty && course ? " · " : ""}
-                    {course ? `${course} курс` : ""}
+                    {course ? t("onboarding.review.course", { course }) : ""}
                   </p>
                 ) : (
                   <p className="mt-2 text-xs text-slate-500">
-                    Факультет и курс можно добавить позже.
+                    {t("onboarding.review.faculty_course_later")}
                   </p>
                 )}
                 {interests ? (
                   <p className="mt-2 text-xs text-slate-500">
-                    Интересы: {interests}
+                    {t("onboarding.review.interests", { interests })}
                   </p>
                 ) : (
                   <p className="mt-2 text-xs text-slate-500">
-                    Интересы можно добавить позже.
+                    {t("onboarding.review.interests_later")}
                   </p>
                 )}
               </div>
               <p className="text-xs text-slate-500">
-                Нажмите “Завершить”, чтобы перейти в ленту.
+                {t("onboarding.review.cta")}
               </p>
             </div>
           ) : null}
@@ -397,7 +407,7 @@ export default function OnboardingClient() {
               disabled={step === 0 || loading}
               className="bubble-btn rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-60 pressable"
             >
-              Назад
+              {t("onboarding.buttons.back")}
             </button>
             {step < steps.length - 1 ? (
               <button
@@ -413,7 +423,7 @@ export default function OnboardingClient() {
                 }
                 className="bubble-btn-primary rounded-full px-5 py-2 text-xs font-semibold disabled:opacity-60 pressable"
               >
-                Далее
+                {t("onboarding.buttons.next")}
               </button>
             ) : (
               <button
@@ -422,7 +432,7 @@ export default function OnboardingClient() {
                 disabled={loading || !canSubmit}
                 className="bubble-btn-primary rounded-full px-5 py-2 text-xs font-semibold disabled:opacity-60 pressable"
               >
-                {loading ? "Сохраняем..." : "Завершить"}
+                {loading ? t("onboarding.buttons.saving") : t("onboarding.buttons.save")}
               </button>
             )}
           </div>

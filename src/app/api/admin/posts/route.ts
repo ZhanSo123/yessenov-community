@@ -1,11 +1,10 @@
-import { type Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
-import { canModerate, getCommunityScope, requireUserApi } from "@/lib/auth";
-import { buildCursor, parseCursor } from "@/lib/pagination";
-import { prisma } from "@/lib/prisma";
+import { requireUserApi } from "@/lib/auth";
+import { parseCursor } from "@/lib/pagination";
 import { PaginationSchema } from "@/lib/validators";
+import { AdminPostService } from "@/services/admin-post-service";
 
 export const runtime = "nodejs";
 
@@ -14,12 +13,6 @@ const DEFAULT_LIMIT = 50;
 export async function GET(request: NextRequest) {
   try {
     const actor = await requireUserApi();
-    const scope = await getCommunityScope(actor);
-    const communityIds = scope?.map((item) => item.communityId) ?? null;
-
-    if (!canModerate(actor) && (!communityIds || communityIds.length === 0)) {
-      return apiError("FORBIDDEN", 403);
-    }
 
     const { searchParams } = new URL(request.url);
     const query = searchParams.get("query")?.trim();
@@ -46,96 +39,34 @@ export async function GET(request: NextRequest) {
       return apiError("BAD_REQUEST", 400);
     }
 
-    const filters: Prisma.PostWhereInput[] = [];
-
-    if (communitySlug) {
-      const community = await prisma.community.findUnique({
-        where: { slug: communitySlug },
-        select: { id: true },
-      });
-
-      if (!community) {
-        return apiError("BAD_REQUEST", 400);
-      }
-
-      filters.push({ communityId: community.id });
+    const fromDate = fromParam ? new Date(fromParam) : null;
+    if (fromParam && Number.isNaN(fromDate?.getTime() ?? NaN)) {
+      return apiError("BAD_REQUEST", 400);
     }
 
-    if (communityIds) {
-      filters.push({ communityId: { in: communityIds } });
+    const toDate = toParam ? new Date(toParam) : null;
+    if (toParam && Number.isNaN(toDate?.getTime() ?? NaN)) {
+      return apiError("BAD_REQUEST", 400);
     }
 
-    if (deletedParam === "1") {
-      filters.push({ deletedAt: { not: null } });
-    } else if (deletedParam === "0") {
-      filters.push({ deletedAt: null });
-    }
-
-    if (query) {
-      filters.push({
-        OR: [
-          { content: { contains: query, mode: "insensitive" } },
-          { author: { username: { contains: query, mode: "insensitive" } } },
-          { author: { email: { contains: query, mode: "insensitive" } } },
-        ],
-      });
-    }
-
-    if (fromParam) {
-      const fromDate = new Date(fromParam);
-      if (Number.isNaN(fromDate.getTime())) {
-        return apiError("BAD_REQUEST", 400);
-      }
-      filters.push({ createdAt: { gte: fromDate } });
-    }
-
-    if (toParam) {
-      const toDate = new Date(toParam);
-      if (Number.isNaN(toDate.getTime())) {
-        return apiError("BAD_REQUEST", 400);
-      }
-      filters.push({ createdAt: { lte: toDate } });
-    }
-
-    if (cursor) {
-      filters.push({
-        OR:
-          sortDirection === "asc"
-            ? [
-                { createdAt: { gt: cursor.createdAt } },
-                { createdAt: cursor.createdAt, id: { gt: cursor.id } },
-              ]
-            : [
-                { createdAt: { lt: cursor.createdAt } },
-                { createdAt: cursor.createdAt, id: { lt: cursor.id } },
-              ],
-      });
-    }
-
-    const posts = await prisma.post.findMany({
-      where: filters.length ? { AND: filters } : undefined,
-      orderBy: [
-        { createdAt: sortDirection },
-        { id: sortDirection },
-      ],
-      take: limit + 1,
-      include: {
-        author: { select: { id: true, email: true, username: true, name: true } },
-        deletedBy: { select: { id: true, email: true, username: true, name: true } },
-        _count: { select: { likes: true, replies: true } },
-      },
+    const service = new AdminPostService();
+    const result = await service.listPosts({
+      actor: { id: actor.id, role: actor.role },
+      query: query ?? null,
+      deleted: deletedParam === "1" || deletedParam === "0" ? deletedParam : null,
+      communitySlug: communitySlug ?? null,
+      sortDirection,
+      fromDate,
+      toDate,
+      limit,
+      cursor,
     });
 
-    const hasMore = posts.length > limit;
-    const sliced = hasMore ? posts.slice(0, limit) : posts;
-    const nextCursor = hasMore
-      ? buildCursor(
-          sliced[sliced.length - 1].createdAt,
-          sliced[sliced.length - 1].id
-        )
-      : null;
+    if (!result.ok) {
+      return apiError(result.code, result.status);
+    }
 
-    return apiSuccess({ data: sliced, nextCursor });
+    return apiSuccess(result.payload);
   } catch (error) {
     if (error instanceof Response) {
       return error;

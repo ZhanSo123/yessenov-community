@@ -4,12 +4,10 @@ import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import {
-
-  canModerate,
   ensureNotBanned,
-  requireUserApi,
+  requireOnboardedUserApi,
 } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { PostService } from "@/services/post-service";
 
 export const runtime = "nodejs";
 
@@ -31,58 +29,29 @@ export async function POST(request: NextRequest) {
       return apiError("BAD_REQUEST", 400);
     }
 
-    const author = await requireUserApi();
+    const author = await requireOnboardedUserApi();
     ensureNotBanned(author);
 
-    const parent = await prisma.post.findUnique({
-      where: { id: parsed.data.repostOfId },
-      select: {
-        id: true,
-        deletedAt: true,
-        communityId: true,
-        authorId: true,
-        author: { select: { shadowBannedAt: true } },
+    const service = new PostService();
+    const result = await service.createRepost({
+      repostOfId: parsed.data.repostOfId,
+      author: {
+        id: author.id,
+        role: author.role,
+        faculty: author.faculty ?? null,
+        course: author.course ?? null,
+        createdAt: author.createdAt,
+        shadowBannedAt: author.shadowBannedAt,
+        username: author.username,
+        usernameLower: author.usernameLower,
       },
     });
 
-    if (!parent || parent.deletedAt) {
-      return apiError("NOT_FOUND", 404);
+    if (!result.ok) {
+      return apiError(result.code, result.status);
     }
 
-    if (
-      parent.author.shadowBannedAt &&
-      !canModerate(author) &&
-      parent.authorId !== author.id
-    ) {
-      return apiError("NOT_FOUND", 404);
-    }
-
-    const repost = await prisma.post.create({
-      data: {
-        content: "",
-        authorId: author.id,
-        repostOfId: parsed.data.repostOfId,
-        communityId: parent.communityId ?? null,
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            email: true,
-            username: true,
-            name: true,
-            displayName: true,
-            image: true,
-          },
-        },
-        _count: { select: { likes: true, replies: true } },
-      },
-    });
-
-    return apiSuccess(
-      { data: { ...repost, viewerHasLiked: false, canViewDeleted: true } },
-      { status: 201 }
-    );
+    return apiSuccess(result.payload, { status: 201 });
   } catch (error) {
     if (error instanceof Response) {
       return error;

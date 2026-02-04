@@ -8,6 +8,7 @@ import { useSession } from "next-auth/react";
 import AppealButton from "@/components/AppealButton";
 import SharePostModal from "@/components/SharePostModal";
 import { type PostWithMeta } from "@/lib/post-types";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 type PostCardProps = {
   post: PostWithMeta;
@@ -46,6 +47,7 @@ export default function PostCard({
 }: PostCardProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const { t } = useI18n();
   const isTemp = typeof post.id === "string" || post.sending;
   if (process.env.NODE_ENV === "development" && !post.author.username) {
     console.warn("PostCard: missing author.username", { postId: post.id });
@@ -53,29 +55,29 @@ export default function PostCard({
 
   const formatRelativeTime = (value: string) => {
     if (isTemp) {
-      return "Отправляем...";
+      return t("post.sending");
     }
     const createdAt = new Date(value);
     if (Number.isNaN(createdAt.getTime())) {
-      return "только что";
+      return t("post.just_now");
     }
     const diffMs = Date.now() - createdAt.getTime();
     if (diffMs < 0) {
-      return "только что";
+      return t("post.just_now");
     }
     const diffMinutes = Math.max(1, Math.floor(diffMs / (60 * 1000)));
     if (diffMinutes < 60) {
-      return `${diffMinutes} мин назад`;
+      return t("post.minutes_ago", { count: diffMinutes });
     }
     const diffHours = Math.floor(diffMinutes / 60);
     if (diffHours < 24) {
-      return `${diffHours} ч назад`;
+      return t("post.hours_ago", { count: diffHours });
     }
     if (diffHours < 48) {
-      return "вчера";
+      return t("post.yesterday");
     }
     const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays} д назад`;
+    return t("post.days_ago", { count: diffDays });
   };
 
   const createdLabel = formatRelativeTime(post.createdAt);
@@ -89,7 +91,7 @@ export default function PostCard({
       router.prefetch(profileHref);
     }
   };
-  const avatarInitial = (displayName ?? post.author.username ?? "U")
+  const avatarInitial = (displayName ?? post.author.username ?? t("common.user"))
     .slice(0, 1)
     .toUpperCase();
   const replyCount = post._count.replies;
@@ -123,12 +125,12 @@ export default function PostCard({
     session?.user?.id === post.author.id;
   const reportTitle =
     reportStatus === "sent"
-      ? "Отправлено"
+      ? t("post.report.sent")
       : reportStatus === "sending"
-        ? "Отправляем..."
+        ? t("post.report.sending")
         : reportStatus === "error"
-          ? "Ошибка"
-          : "Пожаловаться";
+          ? t("post.report.error")
+          : t("post.report.cta");
   const canShare =
     !isTemp &&
     typeof post.id === "number" &&
@@ -156,7 +158,7 @@ export default function PostCard({
     }
 
     const reason = window
-      .prompt("Причина жалобы (1-200 символов)")?.trim();
+      .prompt(t("post.report.prompt"))?.trim();
 
     if (!reason) {
       return;
@@ -187,7 +189,7 @@ export default function PostCard({
       return;
     }
 
-    const confirmed = window.confirm("Удалить пост?");
+    const confirmed = window.confirm(t("post.delete.confirm"));
     if (!confirmed) {
       return;
     }
@@ -202,7 +204,7 @@ export default function PostCard({
 
       if (!response.ok) {
         setDeleteStatus("error");
-        onDeleteError?.("Не удалось удалить");
+        onDeleteError?.(t("post.delete.error"));
         return;
       }
 
@@ -211,16 +213,16 @@ export default function PostCard({
       setDeleteStatus("idle");
     } catch {
       setDeleteStatus("error");
-      onDeleteError?.("Не удалось удалить");
+      onDeleteError?.(t("post.delete.error"));
     }
   };
 
   return (
     <>
       <article
-        className={`rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-sm transition ${
+        className={`rounded-3xl p-5 bubble-surface transition ${
           indent ? "ml-6 border-l-4 border-l-slate-200" : ""
-        } ${highlight ? "ring-1 ring-emerald-200 bg-emerald-50/40" : ""}`}
+        } ${highlight ? "bubble-highlight" : ""}`}
       >
         <div className="flex items-start gap-3">
         {profileHref ? (
@@ -232,7 +234,7 @@ export default function PostCard({
             {post.author.image ? (
               <img
                 src={post.author.image}
-                alt={displayName ?? handleLabel ?? "User"}
+                alt={displayName ?? handleLabel ?? t("common.user")}
                 className="h-10 w-10 rounded-full object-cover"
               />
             ) : (
@@ -244,7 +246,7 @@ export default function PostCard({
         ) : post.author.image ? (
           <img
             src={post.author.image}
-            alt={displayName ?? handleLabel ?? "User"}
+                alt={displayName ?? handleLabel ?? t("common.user")}
             className="h-10 w-10 rounded-full object-cover"
           />
         ) : (
@@ -255,7 +257,7 @@ export default function PostCard({
         <div className="flex-1">
           {showDiscussionHint && hasDiscussion ? (
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-600">
-              Обсуждают сейчас
+              {t("post.discussion_now")}
             </p>
           ) : null}
           <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -286,7 +288,9 @@ export default function PostCard({
                 <span className="font-semibold text-slate-900">{handleLabel}</span>
               )
             ) : (
-              <span className="font-semibold text-slate-900">User</span>
+              <span className="font-semibold text-slate-900">
+                {t("common.user")}
+              </span>
             )}
             <span className="text-xs text-slate-400">· {createdLabel}</span>
             {activityDot ? (
@@ -298,14 +302,14 @@ export default function PostCard({
                   <button
                     type="button"
                     onClick={handleReport}
-                    className={`flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-500 transition hover:border-[#6495ED]/40 hover:text-[#6495ED] pressable ${
+                    className={`bubble-icon-btn flex h-8 w-8 items-center justify-center rounded-full pressable ${
                       reportStatus === "sent"
                         ? "text-emerald-600"
                         : reportStatus === "error"
                           ? "text-rose-500"
                           : ""
                     }`}
-                    aria-label="Пожаловаться"
+                    aria-label={t("post.report.aria")}
                     title={reportTitle}
                   >
                     <svg
@@ -330,13 +334,13 @@ export default function PostCard({
                     <button
                       type="button"
                       onClick={() => setMenuOpen((open) => !open)}
-                      className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-white/90 text-slate-500 transition hover:border-[#6495ED]/40 hover:text-[#6495ED]"
-                      aria-label="Меню"
+                      className="bubble-icon-btn flex h-8 w-8 items-center justify-center rounded-full"
+                      aria-label={t("post.menu.aria")}
                     >
                       ⋯
                     </button>
                     {menuOpen ? (
-                      <div className="absolute right-0 z-10 mt-2 w-36 rounded-xl border border-slate-200 bg-white p-1 text-xs shadow-lg">
+                      <div className="absolute right-0 z-10 mt-2 w-36 rounded-xl p-1 text-xs bubble-surface-strong">
                         {extraMenuItems.map((item) => (
                           <button
                             key={item.key}
@@ -361,7 +365,7 @@ export default function PostCard({
                             onClick={handleDelete}
                             className="w-full rounded-lg px-3 py-2 text-left text-rose-600 transition hover:bg-rose-50"
                           >
-                            Удалить
+                            {t("post.delete.label")}
                           </button>
                         ) : null}
                       </div>
@@ -373,20 +377,20 @@ export default function PostCard({
           </div>
           {isHidden ? (
             <div className="mt-2 space-y-2 text-sm text-slate-500">
-              <p>Пост скрыт модерацией.</p>
+              <p>{t("post.hidden_message")}</p>
               {canAppealHidden ? (
                 <AppealButton targetType="POST" targetId={String(post.id)} />
               ) : null}
             </div>
           ) : isTemp ? (
             <p className="mt-2 text-sm text-slate-700">
-              {post.content || "Репост"}
+              {post.content || t("post.repost_fallback")}
             </p>
           ) : (
             <>
               {isDeletedEffective ? (
                 <div className="mt-2 space-y-2 text-xs text-amber-600">
-                  <p>Пост удалён. Он виден только тебе.</p>
+                  <p>{t("post.deleted_message")}</p>
                   {canAppealHidden ? (
                     <AppealButton targetType="POST" targetId={String(post.id)} />
                   ) : null}
@@ -394,7 +398,7 @@ export default function PostCard({
               ) : (
                 <Link href={`/p/${post.id}`}>
                   <p className="mt-2 text-sm text-slate-700">
-                    {post.content || "Репост"}
+                    {post.content || t("post.repost_fallback")}
                   </p>
                 </Link>
               )}
@@ -416,7 +420,7 @@ export default function PostCard({
                 className={`flex items-center gap-1 transition hover:text-slate-900 pressable ${
                   post.viewerHasLiked ? "text-[#6495ED]" : ""
                 } ${likePulse ? "animate-pop" : ""}`}
-                aria-label="Лайк"
+                aria-label={t("post.actions.like")}
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -444,7 +448,7 @@ export default function PostCard({
                   }}
                   disabled={isTemp}
                   className="flex items-center gap-1 transition hover:text-slate-900 pressable"
-                  aria-label="Ответить"
+                  aria-label={t("post.actions.reply")}
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -472,8 +476,8 @@ export default function PostCard({
                   type="button"
                   onClick={() => setShareOpen(true)}
                   className="flex items-center gap-1 transition hover:text-slate-900 pressable"
-                  aria-label="Переслать"
-                  title="Переслать"
+                  aria-label={t("post.actions.share")}
+                  title={t("post.actions.share")}
                 >
                   <svg
                     viewBox="0 0 24 24"
@@ -504,7 +508,9 @@ export default function PostCard({
             </div>
           ) : null}
           {deleteStatus === "error" ? (
-            <p className="mt-2 text-xs text-rose-500">Не удалось удалить.</p>
+            <p className="mt-2 text-xs text-rose-500">
+              {t("post.error.delete_inline")}
+            </p>
           ) : null}
         </div>
       </div>

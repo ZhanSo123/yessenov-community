@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { useI18n } from "@/lib/i18n/useI18n";
 type InviteResponse = {
   ok?: boolean;
   error?: string;
@@ -10,6 +11,7 @@ type InviteResponse = {
 
 export default function InvitePage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
@@ -28,13 +30,17 @@ export default function InvitePage() {
         | InviteResponse
         | null;
       if (!response.ok) {
-        setError(payload?.error === "BAD_REQUEST" ? "Неверный код" : "Ошибка");
+        setError(
+          payload?.error === "BAD_REQUEST"
+            ? t("invite.error.invalid")
+            : t("invite.error.generic")
+        );
         return;
       }
       router.refresh();
       router.replace("/");
     } catch {
-      setError("Не удалось проверить код");
+      setError(t("invite.error.check_failed"));
     } finally {
       setSending(false);
     }
@@ -46,11 +52,11 @@ export default function InvitePage() {
         <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm">
           <div className="space-y-2">
             <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-              Closed Beta
+              {t("invite.kicker")}
             </p>
-            <h1 className="text-2xl font-semibold">Проект в закрытом тесте</h1>
+            <h1 className="text-2xl font-semibold">{t("invite.title")}</h1>
             <p className="text-sm text-slate-600">
-              Введите код приглашения, чтобы продолжить.
+              {t("invite.subtitle")}
             </p>
           </div>
 
@@ -66,7 +72,7 @@ export default function InvitePage() {
               value={code}
               onChange={(event) => setCode(event.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-              placeholder="Код приглашения"
+              placeholder={t("invite.placeholder")}
             />
             <button
               type="button"
@@ -74,7 +80,7 @@ export default function InvitePage() {
               disabled={sending}
               className="bubble-btn-primary w-full rounded-full px-5 py-2 text-sm font-semibold disabled:opacity-60 pressable"
             >
-              {sending ? "Проверяем..." : "Продолжить"}
+              {sending ? t("invite.submitting") : t("invite.submit")}
             </button>
           </div>
         </div>

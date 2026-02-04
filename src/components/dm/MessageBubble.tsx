@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
+import { useI18n } from "@/lib/i18n/useI18n";
+
 type MessageSender = {
   id: string;
   username: string | null;
@@ -29,31 +31,7 @@ type PostPreview = {
   };
 };
 
-const postLinkRegex = /(?:https?:\\/\\/[^\\s]+)?\\/p\\/(\\d+)/i;
-
-const formatRelativeTime = (value: string) => {
-  const createdAt = new Date(value);
-  if (Number.isNaN(createdAt.getTime())) {
-    return "только что";
-  }
-  const diffMs = Date.now() - createdAt.getTime();
-  if (diffMs < 0) {
-    return "только что";
-  }
-  const diffMinutes = Math.max(1, Math.floor(diffMs / (60 * 1000)));
-  if (diffMinutes < 60) {
-    return `${diffMinutes} мин назад`;
-  }
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) {
-    return `${diffHours} ч назад`;
-  }
-  if (diffHours < 48) {
-    return "вчера";
-  }
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays} д назад`;
-};
+const postLinkRegex = /(?:https?:\/\/[^\s]+)?\/p\/(\d+)/i;
 
 export default function MessageBubble({
   content,
@@ -62,9 +40,35 @@ export default function MessageBubble({
   isMine,
   showAvatar = false,
 }: MessageBubbleProps) {
-  const displayName = sender.displayName || sender.username || "User";
+  const { t } = useI18n();
+  const formatRelativeTime = (value: string) => {
+    const createdAtDate = new Date(value);
+    if (Number.isNaN(createdAtDate.getTime())) {
+      return t("dm.bubble.just_now");
+    }
+    const diffMs = Date.now() - createdAtDate.getTime();
+    if (diffMs < 0) {
+      return t("dm.bubble.just_now");
+    }
+    const diffMinutes = Math.max(1, Math.floor(diffMs / (60 * 1000)));
+    if (diffMinutes < 60) {
+      return t("dm.bubble.minutes_ago", { count: diffMinutes });
+    }
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) {
+      return t("dm.bubble.hours_ago", { count: diffHours });
+    }
+    if (diffHours < 48) {
+      return t("dm.bubble.yesterday");
+    }
+    const diffDays = Math.floor(diffHours / 24);
+    return t("dm.bubble.days_ago", { count: diffDays });
+  };
+  const displayName = sender.displayName || sender.username || t("common.user");
   const timeLabel = formatRelativeTime(createdAt);
-  const avatarInitial = (displayName || "U").slice(0, 1).toUpperCase();
+  const avatarInitial = (displayName || t("common.user"))
+    .slice(0, 1)
+    .toUpperCase();
   const [preview, setPreview] = useState<PostPreview | null>(null);
 
   const postId = useMemo(() => {
@@ -78,7 +82,7 @@ export default function MessageBubble({
     }
     return content
       .replace(postLinkRegex, "")
-      .replace(/Пост:\s*/i, "")
+      .replace(/(Пост|Post):\s*/i, "")
       .trim();
   }, [content, postId]);
 
@@ -155,7 +159,7 @@ export default function MessageBubble({
             <p className="text-xs font-semibold">
               {preview.author.displayName ||
                 preview.author.username ||
-                "User"}
+                t("common.user")}
             </p>
             {preview.author.username ? (
               <p className="text-[11px] text-slate-400">

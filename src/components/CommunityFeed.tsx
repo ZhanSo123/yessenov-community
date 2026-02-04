@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import PostCard from "@/components/PostCard";
 import ReplyComposer from "@/components/ReplyComposer";
 import { type PostWithMeta } from "@/lib/post-types";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 type FeedResponse = {
   data?: PostWithMeta[];
@@ -21,6 +22,7 @@ type LikeToggleResponse = {
 };
 
 export default function CommunityFeed() {
+  const { t } = useI18n();
   const [posts, setPosts] = useState<PostWithMeta[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -52,7 +54,7 @@ export default function CommunityFeed() {
         credentials: "include",
       });
       if (!response.ok) {
-        throw new Error("Не удалось загрузить ленту сообществ");
+        throw new Error(t("community_feed.error.load"));
       }
       const payload = (await response.json()) as FeedResponse;
       const incoming = payload.data ?? [];
@@ -60,7 +62,9 @@ export default function CommunityFeed() {
       setNextCursor(payload.nextCursor ?? null);
     } catch (fetchError) {
       setError(
-        fetchError instanceof Error ? fetchError.message : "Ошибка загрузки"
+        fetchError instanceof Error
+          ? fetchError.message
+          : t("community_feed.error.load_generic")
       );
     } finally {
       setLoading(false);
@@ -113,7 +117,7 @@ export default function CommunityFeed() {
       });
       if (!response.ok) {
         if (response.status === 401) {
-          setActionMessage("Войдите, чтобы ставить лайки.");
+          setActionMessage(t("community_feed.action.like_requires_login"));
         }
         throw new Error("failed");
       }
@@ -176,13 +180,13 @@ export default function CommunityFeed() {
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-6 pb-16 pt-10">
         <header className="flex flex-col gap-3">
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-            Закрытые сообщества
+            {t("community_feed.title.private")}
           </p>
           <h1 className="text-3xl font-semibold sm:text-4xl">
-            Лента доступных сообществ
+            {t("community_feed.subtitle.private")}
           </h1>
           <p className="text-sm text-slate-600">
-            Здесь только закрытые сообщества, к которым у тебя есть доступ.
+            {t("community_feed.description.private")}
           </p>
         </header>
 
@@ -221,7 +225,7 @@ export default function CommunityFeed() {
 
         {!loading && !error && posts.length === 0 ? (
           <p className="text-sm text-slate-500">
-            Закрытые сообщества пока недоступны или в них нет постов.
+            {t("community_feed.empty.private")}
           </p>
         ) : null}
 
@@ -257,7 +261,7 @@ export default function CommunityFeed() {
             disabled={!canLoadMore}
             className="self-center rounded-full border border-slate-200 bg-white/80 px-5 py-2 text-sm text-slate-600 transition hover:text-slate-900 disabled:opacity-60"
           >
-            {loadingMore ? "Загружаем..." : "Load more"}
+            {loadingMore ? t("community_feed.loading_more") : t("community_feed.load_more")}
           </button>
         ) : null}
       </main>

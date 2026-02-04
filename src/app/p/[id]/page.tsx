@@ -8,6 +8,7 @@ import { useSession } from "next-auth/react";
 import PostCard from "@/components/PostCard";
 import ReplyComposer from "@/components/ReplyComposer";
 import { type PostWithMeta } from "@/lib/post-types";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 type ThreadResponse = {
   data?: {
@@ -37,6 +38,7 @@ export default function ThreadPage() {
   const idParam = typeof params.id === "string" ? params.id : "";
   const postId = Number(idParam);
   const { data: session } = useSession();
+  const { t } = useI18n();
 
   const [post, setPost] = useState<PostWithMeta | null>(null);
   const [replies, setReplies] = useState<PostWithMeta[]>([]);
@@ -85,7 +87,7 @@ export default function ThreadPage() {
         setPost(null);
         setReplies([]);
         setNextCursor(null);
-        setError("Пост не найден или скрыт.");
+        setError(t("thread.error.not_found"));
         return;
       }
 
@@ -93,12 +95,12 @@ export default function ThreadPage() {
         setPost(null);
         setReplies([]);
         setNextCursor(null);
-        setError("Это закрытое сообщество.");
+        setError(t("thread.error.private"));
         return;
       }
 
       if (!response.ok) {
-        throw new Error("Не удалось загрузить тред");
+        throw new Error(t("thread.error.load"));
       }
 
       const payload = (await response.json()) as ThreadResponse;
@@ -107,7 +109,9 @@ export default function ThreadPage() {
       setNextCursor(payload.data?.nextCursor ?? null);
     } catch (fetchError) {
       setError(
-        fetchError instanceof Error ? fetchError.message : "Ошибка загрузки"
+        fetchError instanceof Error
+          ? fetchError.message
+          : t("thread.error.load_generic")
       );
     } finally {
       setLoading(false);
@@ -126,7 +130,7 @@ export default function ThreadPage() {
 
       const response = await fetch(url.toString(), { credentials: "include" });
       if (!response.ok) {
-        throw new Error("Не удалось загрузить ответы");
+        throw new Error(t("thread.error.replies"));
       }
 
       const payload = (await response.json()) as RepliesResponse;
@@ -199,7 +203,7 @@ export default function ThreadPage() {
 
       if (!response.ok) {
         if (response.status === 401) {
-          setActionMessage("Войдите, чтобы ставить лайки.");
+          setActionMessage(t("thread.action.like_requires_login"));
           throw new Error("unauthorized");
         }
         if (response.status === 403) {
@@ -209,16 +213,16 @@ export default function ThreadPage() {
           if (payload?.error === "BANNED") {
             const until = payload.bannedUntil
               ? new Date(payload.bannedUntil).toLocaleDateString()
-              : "неизвестно";
+              : t("common.unknown");
             const reason = payload.banReason
-              ? ` Причина: ${payload.banReason}`
+              ? ` ${t("common.reason", { reason: payload.banReason })}`
               : "";
-            setActionMessage(`Вы заблокированы до ${until}.${reason}`);
+            setActionMessage(t("thread.error.banned", { until, reason }));
           } else if (payload?.error === "ONBOARDING_REQUIRED") {
             router.push("/onboarding");
             throw new Error("onboarding");
           } else {
-            setActionMessage("Доступ запрещён.");
+            setActionMessage(t("thread.error.forbidden"));
           }
           throw new Error("forbidden");
         }
@@ -315,7 +319,7 @@ export default function ThreadPage() {
       });
     }
 
-    setReplyToast("Ответ отправлен");
+    setReplyToast(t("thread.toast.reply_sent"));
     window.setTimeout(() => {
       setReplyToast("");
     }, 1800);
@@ -369,7 +373,7 @@ export default function ThreadPage() {
     <div className="relative min-h-screen bg-white text-slate-900">
       <main className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-6 pb-16 pt-10">
         <Link href="/" className="text-xs text-slate-500">
-          ← Назад к ленте
+          {t("thread.back")}
         </Link>
 
         {error ? (
@@ -388,7 +392,9 @@ export default function ThreadPage() {
           </div>
         ) : null}
 
-        {loading ? <p className="text-sm text-slate-500">Загрузка...</p> : null}
+        {loading ? (
+          <p className="text-sm text-slate-500">{t("common.loading")}</p>
+        ) : null}
 
         {post ? (
           <div className="space-y-4">
@@ -432,11 +438,11 @@ export default function ThreadPage() {
                   onClick={handleContinueDiscussion}
                   className="font-semibold text-slate-900"
                 >
-                  Продолжить обсуждение
+                  {t("thread.continue")}
                 </button>
                 {isNotAuthor ? (
                   <span className="ml-2 text-xs text-slate-500">
-                    Что думаешь?
+                    {t("thread.prompt")}
                   </span>
                 ) : null}
               </div>
@@ -451,7 +457,7 @@ export default function ThreadPage() {
             disabled={!canLoadMore}
             className="bubble-btn self-center rounded-full px-5 py-2 text-sm disabled:opacity-60 pressable"
           >
-            {loadingMore ? "Загружаем..." : "Load more"}
+            {loadingMore ? t("common.loading_more") : t("common.load_more")}
           </button>
         ) : null}
       </main>

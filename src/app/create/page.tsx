@@ -5,12 +5,15 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 
+import { useI18n } from "@/lib/i18n/useI18n";
+
 export default function CreatePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const communitySlug = searchParams.get("c")?.trim() || "";
   const { data: session, status } = useSession();
   const user = session?.user ?? null;
+  const { t } = useI18n();
   const loading = status === "loading";
   const [content, setContent] = useState("");
   const [error, setError] = useState("");
@@ -22,12 +25,12 @@ export default function CreatePage() {
     setError("");
 
     if (!user) {
-      setError("Сначала войдите");
+      setError(t("create.error.sign_in"));
       return;
     }
 
     if (!content.trim()) {
-      setError("Введите текст поста");
+      setError(t("create.error.enter_text"));
       return;
     }
 
@@ -45,7 +48,7 @@ export default function CreatePage() {
       });
 
       if (response.status === 401) {
-        setError("Сначала войдите");
+        setError(t("create.error.sign_in"));
         return;
       }
 
@@ -56,14 +59,16 @@ export default function CreatePage() {
         if (payload?.error === "BANNED") {
           const until = payload.bannedUntil
             ? new Date(payload.bannedUntil).toLocaleDateString()
-            : "неизвестно";
-          const reason = payload.banReason ? ` Причина: ${payload.banReason}` : "";
-          setError(`Вы заблокированы до ${until}.${reason}`);
+            : t("common.unknown");
+          const reason = payload.banReason
+            ? ` ${t("common.reason", { reason: payload.banReason })}`
+            : "";
+          setError(t("create.error.banned", { until, reason }));
         } else {
           setError(
             payload?.message === "PRIVATE_COMMUNITY"
-              ? "Это закрытое сообщество."
-              : "Доступ запрещён."
+              ? t("create.error.private_community")
+              : t("create.error.forbidden")
           );
         }
         return;
@@ -71,7 +76,7 @@ export default function CreatePage() {
 
       const payload = (await response.json()) as { data?: { id: number } };
       if (!response.ok || !payload.data?.id) {
-        throw new Error("Не удалось создать пост");
+        throw new Error(t("create.error.create_failed"));
       }
 
       router.push(`/p/${payload.data.id}`);
@@ -79,7 +84,7 @@ export default function CreatePage() {
       setError(
         fetchError instanceof Error
           ? fetchError.message
-          : "Не удалось создать пост"
+          : t("create.error.create_failed")
       );
     } finally {
       setSubmitting(false);
@@ -87,51 +92,58 @@ export default function CreatePage() {
   };
 
   return (
-    <div className="relative min-h-screen bg-white text-slate-900">
+    <div className="relative min-h-screen text-slate-900">
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 pb-16 pt-10">
-        <header>
-          <h1 className="text-3xl font-semibold sm:text-4xl">Создать пост</h1>
+        <header className="rounded-3xl p-5 bubble-surface-strong">
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
+            {t("common.app_name")}
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold sm:text-4xl">
+            {t("create.title")}
+          </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Быстрый черновик для нового треда.
+            {t("create.subtitle")}
           </p>
           {communitySlug ? (
             <p className="mt-2 text-xs text-slate-500">
-              Сообщество: {communitySlug}
+              {t("create.community_label", { slug: communitySlug })}
             </p>
           ) : null}
         </header>
 
         {loadingError ? (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
             {loadingError}
           </div>
         ) : null}
 
-        {loading ? <p className="text-sm text-slate-500">Загрузка...</p> : null}
+        {loading ? (
+          <p className="text-sm text-slate-500">{t("create.loading")}</p>
+        ) : null}
 
         {!loading && !user ? (
-          <div className="rounded-2xl border border-slate-200 bg-white/80 p-5 text-sm text-slate-600">
-            <p>Чтобы создать пост, нужно войти.</p>
+          <div className="rounded-3xl p-5 text-sm text-slate-600 bubble-surface">
+            <p>{t("create.prompt.sign_in")}</p>
             <Link
               href="/"
               className="bubble-btn-primary mt-3 inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold pressable"
             >
-              Войти
+              {t("create.prompt.action")}
             </Link>
           </div>
         ) : null}
 
         <form
           onSubmit={handleSubmit}
-          className="rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-sm"
+          className="rounded-3xl p-6 bubble-surface"
         >
           <label className="text-sm font-semibold text-slate-700">
-            Текст поста
+            {t("create.form.label")}
             <textarea
               value={content}
               onChange={(event) => setContent(event.target.value)}
-              className="mt-2 min-h-[140px] w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900"
-              placeholder="Что нового?"
+              className="mt-2 min-h-[160px] w-full rounded-2xl px-4 py-3 text-sm bubble-input"
+              placeholder={t("create.form.placeholder")}
               disabled={!user || submitting}
             />
           </label>
@@ -141,7 +153,7 @@ export default function CreatePage() {
             disabled={!user || submitting}
             className="bubble-btn-primary mt-4 rounded-full px-5 py-2 text-sm font-semibold disabled:opacity-60 pressable"
           >
-            {submitting ? "Публикуем..." : "Post"}
+            {submitting ? t("create.form.submitting") : t("create.form.submit")}
           </button>
         </form>
       </main>

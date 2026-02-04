@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { requireRoleApi } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { AdminErrorService } from "@/services/admin-error-service";
 
 export const runtime = "nodejs";
 
@@ -14,26 +14,17 @@ export async function POST(
     const { id } = await context.params;
     const actor = await requireRoleApi("ADMIN");
 
-    const target = await prisma.errorLog.findUnique({
-      where: { id },
-      select: { id: true },
+    const service = new AdminErrorService();
+    const result = await service.resolveError({
+      errorId: id,
+      actorId: actor.id,
     });
 
-    if (!target) {
-      return apiError("NOT_FOUND", 404);
+    if (!result.ok) {
+      return apiError(result.code, result.status);
     }
 
-    const updated = await prisma.errorLog.update({
-      where: { id },
-      data: { resolvedAt: new Date(), resolvedById: actor.id },
-      select: {
-        id: true,
-        resolvedAt: true,
-        resolvedById: true,
-      },
-    });
-
-    return apiSuccess({ data: updated });
+    return apiSuccess(result.payload);
   } catch (error) {
     if (error instanceof Response) {
       return error;

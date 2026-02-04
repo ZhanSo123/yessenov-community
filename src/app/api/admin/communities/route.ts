@@ -1,7 +1,7 @@
 import { apiError, apiSuccess } from "@/lib/api-errors";
-import { canModerate, getCommunityScope, requireRoleApi, requireUserApi } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getCommunityScope, requireRoleApi, requireUserApi } from "@/lib/auth";
 import { CommunityCreateSchema } from "@/lib/validators";
+import { AdminCommunityService } from "@/services/admin-community-service";
 
 export const runtime = "nodejs";
 
@@ -10,27 +10,14 @@ export async function GET() {
     const actor = await requireUserApi();
     const scope = await getCommunityScope(actor);
 
-    if (!canModerate(actor)) {
-      const owned = (scope ?? []).filter((item) => item.role === "OWNER");
-      if (owned.length === 0) {
-        return apiError("FORBIDDEN", 403);
-      }
+    const service = new AdminCommunityService();
+    const result = await service.listCommunities({ actor, scope });
 
-      const communities = await prisma.community.findMany({
-        where: { id: { in: owned.map((item) => item.communityId) } },
-        orderBy: { createdAt: "desc" },
-        include: { _count: { select: { posts: true, members: true } } },
-      });
-
-      return apiSuccess({ data: communities });
+    if (!result.ok) {
+      return apiError(result.code, result.status);
     }
 
-    const communities = await prisma.community.findMany({
-      orderBy: { createdAt: "desc" },
-      include: { _count: { select: { posts: true, members: true } } },
-    });
-
-    return apiSuccess({ data: communities });
+    return apiSuccess(result.payload);
   } catch (error) {
     if (error instanceof Response) {
       return error;
@@ -67,27 +54,23 @@ export async function POST(request: Request) {
         : null;
     const courseYear = type === "COURSE" ? parsed.data.courseYear ?? null : null;
 
-    const community = await prisma.community.create({
-      data: {
-        slug: parsed.data.slug,
-        title: parsed.data.title,
-        description: parsed.data.description ?? "",
-        type,
-        isPrivate,
-        facultyCode,
-        courseYear,
-      },
+    const service = new AdminCommunityService();
+    const result = await service.createCommunity({
+      actor,
+      slug: parsed.data.slug,
+      title: parsed.data.title,
+      description: parsed.data.description ?? "",
+      type,
+      isPrivate,
+      facultyCode,
+      courseYear,
     });
 
-    await prisma.communityMember.create({
-      data: {
-        communityId: community.id,
-        userId: actor.id,
-        role: "OWNER",
-      },
-    }).catch(() => null);
+    if (!result.ok) {
+      return apiError(result.code, result.status);
+    }
 
-    return apiSuccess({ data: community }, { status: 201 });
+    return apiSuccess(result.payload, { status: 201 });
   } catch (error) {
     if (error instanceof Response) {
       return error;

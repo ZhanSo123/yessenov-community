@@ -1,11 +1,9 @@
-import { type Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
-import { requireUserApi } from "@/lib/auth";
-import { isUniqueConstraintError } from "@/lib/prisma-errors";
-import { prisma } from "@/lib/prisma";
+import { requireInvitedUserApi } from "@/lib/auth";
 import { OnboardingSchema } from "@/lib/validators";
+import { OnboardingService } from "@/services/onboarding-service";
 
 export const runtime = "nodejs";
 
@@ -23,7 +21,7 @@ export async function POST(request: NextRequest) {
       return apiError("BAD_REQUEST", 400);
     }
 
-    const user = await requireUserApi();
+    const user = await requireInvitedUserApi();
     const username = parsed.data.username.trim().replace(/^@/, "").toLowerCase();
     if (!username) {
       return apiError("BAD_REQUEST", 400);
@@ -35,41 +33,21 @@ export async function POST(request: NextRequest) {
       return apiError("BAD_REQUEST", 400);
     }
 
-    try {
-      const data: Prisma.UserUpdateInput = {
-        username,
-        usernameLower: username,
-        hasOnboarded: true,
-      };
-      if (parsed.data.age !== undefined) {
-        data.age = parsed.data.age ?? null;
-      }
-      if (parsed.data.faculty !== undefined) {
-        data.faculty = faculty || null;
-      }
-      if (parsed.data.course !== undefined) {
-        data.course = parsed.data.course ?? null;
-      }
-      if (parsed.data.bio !== undefined) {
-        data.bio = bio || null;
-      }
-      if (parsed.data.image !== undefined) {
-        data.image = image || null;
-      }
+    const service = new OnboardingService();
+    const result = await service.completeOnboarding({
+      actor: user,
+      username,
+      faculty: parsed.data.faculty !== undefined ? faculty || null : undefined,
+      course: parsed.data.course !== undefined ? parsed.data.course ?? null : undefined,
+      bio: parsed.data.bio !== undefined ? bio || null : undefined,
+      image: parsed.data.image !== undefined ? image || null : undefined,
+    });
 
-      const updated = await prisma.user.update({
-        where: { id: user.id },
-        data,
-      });
-
-      return apiSuccess({ data: updated });
-    } catch (error) {
-      if (isUniqueConstraintError(error)) {
-        return apiError("BAD_REQUEST", 400);
-      }
-
-      throw error;
+    if (!result.ok) {
+      return apiError(result.code, result.status);
     }
+
+    return apiSuccess(result.payload);
   } catch (error) {
     if (error instanceof Response) {
       return error;

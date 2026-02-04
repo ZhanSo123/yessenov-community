@@ -1,8 +1,8 @@
 import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
-import { requireUserApi } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { requireOnboardedUserApi } from "@/lib/auth";
+import { NotificationService } from "@/services/notification-service";
 
 export const runtime = "nodejs";
 
@@ -24,14 +24,12 @@ export async function POST(request: NextRequest) {
       return apiError("BAD_REQUEST", 400);
     }
 
-    const user = await requireUserApi();
+    const user = await requireOnboardedUserApi();
 
-    await prisma.notification.updateMany({
-      where: { id, userId: user.id, readAt: null },
-      data: { readAt: new Date() },
-    });
+    const service = new NotificationService();
+    const result = await service.markRead(user.id, id);
 
-    return apiSuccess({ ok: true });
+    return apiSuccess(result);
   } catch (error) {
     if (error instanceof Response) {
       return error;

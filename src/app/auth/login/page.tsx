@@ -4,32 +4,34 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 
 import DevLoginButton from "@/components/DevLoginButton";
+import { useI18n } from "@/lib/i18n/useI18n";
 export default function AuthLoginPage() {
+  const { t } = useI18n();
   return (
-    <div className="min-h-screen bg-white text-slate-900">
+    <div className="min-h-screen text-slate-900">
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-16">
-        <header className="space-y-2">
-          <h1 className="text-3xl font-semibold">Вход</h1>
-          <p className="text-sm text-slate-600">
-            Продолжите через Google.
+        <header className="rounded-3xl p-5 bubble-surface-strong">
+          <h1 className="text-3xl font-semibold">{t("auth.login.title")}</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            {t("auth.login.subtitle")}
           </p>
         </header>
 
-        <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-sm">
+        <div className="rounded-3xl p-6 bubble-surface">
           <button
             type="button"
             onClick={() => signIn("google", { callbackUrl: "/" })}
             className="bubble-btn w-full rounded-full px-5 py-3 text-sm font-semibold pressable"
           >
-            Войти через Google
+            {t("auth.login.google")}
           </button>
           <div className="mt-3">
             <DevLoginButton />
           </div>
           <p className="mt-4 text-xs text-slate-500">
-            Нет аккаунта?{" "}
+            {t("auth.login.no_account")}{" "}
             <Link href="/welcome" className="underline">
-              На главную
+              {t("auth.login.back_home")}
             </Link>
           </p>
         </div>

@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
-import { requireUserApi } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { requireOnboardedUserApi } from "@/lib/auth";
 import { validateUsername, DmStartSchema } from "@/lib/validators";
+import { DmStartService } from "@/services/dm-start-service";
 
 export const runtime = "nodejs";
 
@@ -32,63 +32,19 @@ export async function POST(request: NextRequest) {
     }
     targetUsernameLower = usernameResult.usernameLower;
 
-    const me = await requireUserApi();
+    const me = await requireOnboardedUserApi();
     actorId = me.id;
-    const target = await prisma.user.findUnique({
-      where: { usernameLower: usernameResult.usernameLower },
-      select: { id: true },
+    const service = new DmStartService();
+    const result = await service.startConversation({
+      actorId: me.id,
+      targetUsernameLower: usernameResult.usernameLower,
     });
 
-    if (!target) {
-      return apiError("NOT_FOUND", 404, { message: "USER_NOT_FOUND" });
+    if (!result.ok) {
+      return apiError(result.code, result.status, result.meta);
     }
 
-    targetUserId = target.id;
-
-    if (target.id === me.id) {
-      return apiError("BAD_REQUEST", 400, { message: "CANNOT_MESSAGE_SELF" });
-    }
-
-    const existing = await prisma.conversation.findFirst({
-      where: {
-        AND: [
-          { participants: { some: { userId: me.id } } },
-          { participants: { some: { userId: target.id } } },
-        ],
-      },
-      select: { id: true },
-    });
-
-    if (existing) {
-      return apiSuccess({ data: { conversationId: existing.id } });
-    }
-
-    const created = await prisma.$transaction(async (tx) => {
-      const again = await tx.conversation.findFirst({
-        where: {
-          AND: [
-            { participants: { some: { userId: me.id } } },
-            { participants: { some: { userId: target.id } } },
-          ],
-        },
-        select: { id: true },
-      });
-
-      if (again) {
-        return again;
-      }
-
-      return tx.conversation.create({
-        data: {
-          participants: {
-            create: [{ userId: me.id }, { userId: target.id }],
-          },
-        },
-        select: { id: true },
-      });
-    });
-
-    return apiSuccess({ data: { conversationId: created.id } });
+    return apiSuccess(result.payload);
   } catch (error) {
     if (error instanceof Response) {
       return error;

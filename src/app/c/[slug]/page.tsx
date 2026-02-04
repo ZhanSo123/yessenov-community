@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
+import { useI18n } from "@/lib/i18n/useI18n";
+
 type Community = {
   id: number;
   slug: string;
@@ -41,6 +43,7 @@ type PostResponse = {
 export default function CommunityPage() {
   const params = useParams();
   const slug = typeof params.slug === "string" ? params.slug : "";
+  const { t } = useI18n();
   const [community, setCommunity] = useState<Community | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,22 +52,22 @@ export default function CommunityPage() {
   const relativeTime = (iso: string) => {
     const createdAt = new Date(iso);
     if (Number.isNaN(createdAt.getTime())) {
-      return "только что";
+      return t("post.just_now");
     }
     const diffMs = Date.now() - createdAt.getTime();
     if (diffMs < 0 || diffMs < 5 * 60 * 1000) {
-      return "только что";
+      return t("post.just_now");
     }
     const diffMinutes = Math.floor(diffMs / (60 * 1000));
     if (diffMinutes < 60) {
-      return `${diffMinutes} мин назад`;
+      return t("post.minutes_ago", { count: diffMinutes });
     }
     const diffHours = Math.floor(diffMinutes / 60);
     if (diffHours < 24) {
-      return `${diffHours} ч назад`;
+      return t("post.hours_ago", { count: diffHours });
     }
     const diffDays = Math.floor(diffHours / 24);
-    return `${diffDays} д назад`;
+    return t("post.days_ago", { count: diffDays });
   };
 
   useEffect(() => {
@@ -83,10 +86,10 @@ export default function CommunityPage() {
         ]);
 
         if (postsRes.status === 403) {
-          throw new Error("Это закрытое сообщество");
+          throw new Error(t("thread.error.private"));
         }
         if (!communityRes.ok || !postsRes.ok) {
-          throw new Error("Не удалось загрузить данные сообщества");
+          throw new Error(t("community_feed.error.load"));
         }
 
         const communityPayload =
@@ -105,7 +108,7 @@ export default function CommunityPage() {
           setError(
             fetchError instanceof Error
               ? fetchError.message
-              : "Ошибка загрузки"
+              : t("common.error_load")
           );
         }
       } finally {
@@ -129,23 +132,25 @@ export default function CommunityPage() {
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 pb-16 pt-12">
         <header className="flex flex-col gap-3">
           <p className="text-xs uppercase tracking-[0.3em] text-slate-500">
-            Сообщество
+            {t("community.page.kicker")}
           </p>
           <h1 className="text-3xl font-semibold sm:text-4xl">
-            {community?.title ?? "Сообщество"}
+            {community?.title ?? t("community.page.title_fallback")}
           </h1>
           {community ? (
             <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
               <span>
                 {community.type === "OPEN"
-                  ? "Открытое"
+                  ? t("community.type.open")
                   : community.type === "FACULTY"
-                    ? "Факультет"
+                    ? t("community.type.faculty")
                     : community.type === "COURSE"
-                      ? "Курс"
-                      : "Преподаватели"}
+                      ? t("community.type.course")
+                      : t("community.type.teachers")}
                 {community.facultyCode ? ` · ${community.facultyCode}` : ""}
-                {community.courseYear ? ` · ${community.courseYear} курс` : ""}
+                {community.courseYear
+                  ? ` · ${community.courseYear} ${t("community.type.course")}`
+                  : ""}
               </span>
               {community.type !== "OPEN" || community.isPrivate ? (
                 <span className="inline-flex items-center gap-1 rounded-full border border-[#6495ED]/30 bg-white px-2 py-1 text-[10px] uppercase text-[#6495ED]">
@@ -163,13 +168,13 @@ export default function CommunityPage() {
                       strokeLinecap="round"
                     />
                   </svg>
-                  Закрытое
+                  {t("community.page.private")}
                 </span>
               ) : null}
             </div>
           ) : null}
           <p className="max-w-2xl text-sm text-slate-600">
-            {community?.description ?? "Описание сообщества пока не добавлено."}
+            {community?.description ?? t("community.page.description_fallback")}
           </p>
           {!error ? (
             <div>
@@ -177,7 +182,7 @@ export default function CommunityPage() {
                 href={`/create?c=${encodeURIComponent(slug)}`}
                 className="bubble-btn-primary inline-flex items-center rounded-full px-4 py-2 text-sm font-semibold pressable"
               >
-                Создать пост
+                {t("community.page.create_post")}
               </Link>
             </div>
           ) : null}
@@ -190,11 +195,11 @@ export default function CommunityPage() {
         ) : null}
 
         {loading ? (
-          <p className="text-sm text-slate-500">Загрузка...</p>
+          <p className="text-sm text-slate-500">{t("community.page.loading")}</p>
         ) : null}
 
         {!loading && !error && posts.length === 0 ? (
-          <p className="text-sm text-slate-500">Постов пока нет.</p>
+          <p className="text-sm text-slate-500">{t("community.page.empty")}</p>
         ) : null}
 
         <section className="space-y-4">
@@ -205,7 +210,9 @@ export default function CommunityPage() {
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-sm font-semibold text-slate-900">
-                  {post.author.username ? `@${post.author.username}` : "Автор"}
+                  {post.author.username
+                    ? `@${post.author.username}`
+                    : t("community.page.author")}
                 </h2>
                 <time className="text-xs text-slate-400">
                   {relativeTime(post.createdAt)}
@@ -217,12 +224,14 @@ export default function CommunityPage() {
                   {post.community.title}
                 </span>
                 <span>{post.community.slug}</span>
-                <span>Автор: {post.author.username}</span>
+                <span>
+                  {t("community.page.author")}: {post.author.username}
+                </span>
                 <Link
                   href={`/post/${post.id}`}
                   className="text-slate-700 underline-offset-2 hover:underline"
                 >
-                  Открыть →
+                  {t("community.page.open_post")}
                 </Link>
               </div>
             </article>

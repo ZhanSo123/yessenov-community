@@ -1,10 +1,11 @@
 import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
-import { requireUserApi } from "@/lib/auth";
-import { buildCursorString, parseCursorString } from "@/lib/pagination";
-import { prisma } from "@/lib/prisma";
+import { requireOnboardedUserApi } from "@/lib/auth";
+import { buildCacheHeaders } from "@/lib/cache";
+import { parseCursorString } from "@/lib/pagination";
 import { PaginationSchema } from "@/lib/validators";
+import { NotificationService } from "@/services/notification-service";
 
 export const runtime = "nodejs";
 
@@ -29,47 +30,17 @@ export async function GET(request: NextRequest) {
       return apiError("BAD_REQUEST", 400);
     }
 
-    const user = await requireUserApi();
-
-    const cursorFilter = cursor
-      ? {
-          OR: [
-            { createdAt: { lt: cursor.createdAt } },
-            { createdAt: cursor.createdAt, id: { lt: cursor.id } },
-          ],
-        }
-      : {};
-
-    const notifications = await prisma.notification.findMany({
-      where: {
-        userId: user.id,
-        ...cursorFilter,
-      },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: limit + 1,
-      include: {
-        actor: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            image: true,
-          },
-        },
-        post: { select: { id: true } },
-      },
+    const user = await requireOnboardedUserApi();
+    const service = new NotificationService();
+    const result = await service.listNotifications({
+      userId: user.id,
+      limit,
+      cursor,
     });
 
-    const hasMore = notifications.length > limit;
-    const sliced = hasMore ? notifications.slice(0, limit) : notifications;
-    const nextCursor = hasMore
-      ? buildCursorString(
-          sliced[sliced.length - 1].createdAt,
-          sliced[sliced.length - 1].id
-        )
-      : null;
-
-    return apiSuccess({ data: sliced, nextCursor });
+    return apiSuccess(result.payload, {
+      headers: buildCacheHeaders(result.cacheKey, result.cached),
+    });
   } catch (error) {
     if (error instanceof Response) {
       return error;

@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
-import { requireUserApi } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { requireOnboardedUserApi } from "@/lib/auth";
 import { FeedbackCreateSchema } from "@/lib/validators";
+import { FeedbackService } from "@/services/feedback-service";
 
 export const runtime = "nodejs";
 
@@ -21,17 +21,16 @@ export async function POST(request: NextRequest) {
       return apiError("BAD_REQUEST", 400);
     }
 
-    const user = await requireUserApi();
+    const user = await requireOnboardedUserApi();
 
-    const feedback = await prisma.feedback.create({
-      data: {
-        userId: user.id,
-        message: parsed.data.message,
-        currentPath: parsed.data.currentPath,
-      },
+    const service = new FeedbackService();
+    const result = await service.createFeedback({
+      userId: user.id,
+      message: parsed.data.message,
+      currentPath: parsed.data.currentPath ?? null,
     });
 
-    return apiSuccess({ data: feedback }, { status: 201 });
+    return apiSuccess(result.payload, { status: 201 });
   } catch (error) {
     if (error instanceof Response) {
       return error;

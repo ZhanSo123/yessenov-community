@@ -1,4 +1,6 @@
-import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
+
+import { ErrorLogRepository } from "@/repositories/error-log-repository";
 
 type ErrorLogInput = {
   level?: "ERROR" | "WARN";
@@ -16,6 +18,8 @@ type ErrorLogInput = {
 const RETENTION_DAYS = 30;
 let lastCleanupAt = 0;
 
+const errorRepo = new ErrorLogRepository();
+
 const cleanupOldErrors = async () => {
   const now = Date.now();
   if (now - lastCleanupAt < 24 * 60 * 60 * 1000) {
@@ -24,7 +28,7 @@ const cleanupOldErrors = async () => {
   lastCleanupAt = now;
   try {
     const cutoff = new Date(now - RETENTION_DAYS * 24 * 60 * 60 * 1000);
-    await prisma.errorLog.deleteMany({
+    await errorRepo.deleteMany({
       where: { createdAt: { lt: cutoff } },
     });
   } catch {
@@ -35,7 +39,7 @@ const cleanupOldErrors = async () => {
 export const logError = async (input: ErrorLogInput) => {
   try {
     await cleanupOldErrors();
-    await prisma.errorLog.create({
+    await errorRepo.create({
       data: {
         level: input.level ?? "ERROR",
         message: input.message,
@@ -46,7 +50,10 @@ export const logError = async (input: ErrorLogInput) => {
         userId: input.userId ?? null,
         ip: input.ip ?? null,
         userAgent: input.userAgent ?? null,
-        metadata: input.metadata ?? undefined,
+        metadata:
+          input.metadata === null
+            ? Prisma.DbNull
+            : (input.metadata as Prisma.InputJsonValue | undefined),
       },
     });
   } catch {

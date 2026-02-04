@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { type ViewerState } from "@/lib/post-types";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 export type UserSearchItem = {
   id: string;
@@ -30,22 +31,23 @@ export default function UserSearchCard({
   onToggle,
 }: UserSearchCardProps) {
   const router = useRouter();
+  const { t } = useI18n();
   const displayName = item.displayName?.trim() || null;
   const username = item.username;
   const handle = username ? `@${username}` : "@user";
   const title = displayName ?? handle;
   const profileHref = username ? `/u/${username}` : null;
-  const avatarInitial = (displayName ?? username ?? "U")
+  const avatarInitial = (displayName ?? username ?? t("common.user"))
     .slice(0, 1)
     .toUpperCase();
 
   const buttonLabel = isUnauthed
-    ? "Войти"
+    ? t("user_search.action.sign_in")
     : item.viewer.isFriend
-    ? "Друзья"
+    ? t("user_search.action.friends")
     : item.viewer.isFollowing
-    ? "Вы подписаны"
-    : "Подписаться";
+    ? t("user_search.action.following")
+    : t("user_search.action.follow");
 
   const canToggle = Boolean(username) && !item.viewer.isMe;
   const disabled = isUnauthed || isPending || !canToggle;
@@ -90,11 +92,11 @@ export default function UserSearchCard({
         <button
           type="button"
           onClick={() => onToggle?.(item)}
-          disabled={disabled}
-          className="bubble-btn rounded-full px-3 py-1.5 text-xs font-semibold disabled:opacity-60 pressable"
-        >
-          {isPending ? "Обновляем..." : buttonLabel}
-        </button>
+        disabled={disabled}
+        className="bubble-btn rounded-full px-3 py-1.5 text-xs font-semibold disabled:opacity-60 pressable"
+      >
+          {isPending ? t("user_search.action.pending") : buttonLabel}
+      </button>
       ) : null}
     </div>
   );

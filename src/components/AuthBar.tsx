@@ -4,11 +4,14 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getProviders, signIn, signOut, useSession } from "next-auth/react";
 
+import { useI18n } from "@/lib/i18n/useI18n";
+
 export default function AuthBar() {
   const { data: session, status } = useSession();
   const user = session?.user;
+  const { t } = useI18n();
   const label =
-    user?.displayName ?? user?.name ?? user?.email ?? "Пользователь";
+    user?.displayName ?? user?.name ?? user?.email ?? t("common.user");
   const [hasGoogleProvider, setHasGoogleProvider] = useState(true);
   const [providersLoaded, setProvidersLoaded] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -74,15 +77,17 @@ export default function AuthBar() {
     <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white/70 p-4 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-semibold text-slate-900">Добро пожаловать!</p>
+          <p className="text-sm font-semibold text-slate-900">
+            {t("auth_bar.welcome")}
+          </p>
           <p className="text-xs text-slate-600">
             {status === "loading"
-              ? "Проверяем сессию..."
+              ? t("auth_bar.session_checking")
               : status === "authenticated"
-              ? `Вы вошли как ${label}`
+              ? t("auth_bar.signed_in_as", { label })
               : googleMissing
-              ? "Google OAuth не настроен."
-              : "Войдите в аккаунт, чтобы публиковать"}
+              ? t("auth_bar.google_missing")
+              : t("auth_bar.sign_in_prompt")}
           </p>
         </div>
 
@@ -92,7 +97,7 @@ export default function AuthBar() {
               href="/notifications"
               className="bubble-btn relative rounded-full px-4 py-2 text-sm font-semibold pressable"
             >
-              Уведомления
+              {t("auth_bar.notifications")}
               {unreadCount > 0 ? (
                 <span className="absolute -right-1 -top-1 flex h-5 min-w-[20px] items-center justify-center rounded-full bg-emerald-500 px-1 text-[10px] font-semibold text-white">
                   {unreadCount > 99 ? "99+" : unreadCount}
@@ -104,7 +109,7 @@ export default function AuthBar() {
               onClick={() => signOut({ callbackUrl: "/" })}
               className="bubble-btn-primary rounded-full px-4 py-2 text-sm font-semibold pressable"
             >
-              Выйти
+              {t("auth_bar.sign_out")}
             </button>
           </div>
         ) : (
@@ -113,7 +118,7 @@ export default function AuthBar() {
               href="/welcome"
               className="bubble-btn-primary rounded-full px-4 py-2 text-sm font-semibold pressable"
             >
-              Войти
+              {t("auth_bar.sign_in")}
             </Link>
             <button
               type="button"
@@ -121,7 +126,7 @@ export default function AuthBar() {
               disabled={!canSignIn || status === "loading"}
               className="bubble-btn rounded-full px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 pressable"
             >
-              Google
+              {t("common.google")}
             </button>
           </div>
         )}

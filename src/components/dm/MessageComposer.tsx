@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { useI18n } from "@/lib/i18n/useI18n";
+
 type MessageComposerProps = {
   onSend: (content: string) => Promise<boolean> | boolean;
   disabled?: boolean;
@@ -11,6 +13,7 @@ export default function MessageComposer({
   onSend,
   disabled = false,
 }: MessageComposerProps) {
+  const { t } = useI18n();
   const [content, setContent] = useState("");
   const [sending, setSending] = useState(false);
 
@@ -42,7 +45,7 @@ export default function MessageComposer({
       <textarea
         value={content}
         onChange={(event) => setContent(event.target.value)}
-        placeholder="Напишите сообщение..."
+        placeholder={t("dm.message.placeholder")}
         rows={3}
         className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-400"
       />
@@ -53,7 +56,7 @@ export default function MessageComposer({
           disabled={!isValid || sending || disabled}
           className="bubble-btn-primary rounded-full px-4 py-2 text-xs font-semibold disabled:opacity-60 pressable"
         >
-          {sending ? "Отправляем..." : "Отправить"}
+          {sending ? t("dm.message.sending") : t("dm.message.send")}
         </button>
       </div>
     </form>

@@ -3,10 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { useI18n } from "@/lib/i18n/useI18n";
+
 const isDev = process.env.NODE_ENV === "development";
 
 export default function DevLoginButton() {
   const router = useRouter();
+  const { t } = useI18n();
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
 
   if (!isDev) {
@@ -43,11 +46,13 @@ export default function DevLoginButton() {
         disabled={status === "loading"}
         className="bubble-btn w-full rounded-full px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60 pressable"
       >
-        {status === "loading" ? "Входим..." : "Войти как разработчик"}
+        {status === "loading"
+          ? t("dev_login.button.loading")
+          : t("dev_login.button.default")}
       </button>
       {status === "error" ? (
         <p className="text-xs text-rose-500">
-          Не удалось войти. Проверьте dev API.
+          {t("dev_login.error")}
         </p>
       ) : null}
     </div>

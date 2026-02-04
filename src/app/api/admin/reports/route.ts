@@ -1,16 +1,14 @@
-import { type Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
-import { canModerate, getCommunityScope, requireUserApi } from "@/lib/auth";
-import { buildCursorString, parseCursorString } from "@/lib/pagination";
-import { prisma } from "@/lib/prisma";
+import { requireUserApi } from "@/lib/auth";
+import { parseCursorString } from "@/lib/pagination";
 import {
-
   PaginationSchema,
   ReportCategorySchema,
   ReportStatusSchema,
 } from "@/lib/validators";
+import { AdminReportService } from "@/services/admin-report-service";
 
 export const runtime = "nodejs";
 
@@ -19,12 +17,6 @@ const DEFAULT_LIMIT = 50;
 export async function GET(request: NextRequest) {
   try {
     const actor = await requireUserApi();
-    const scope = await getCommunityScope(actor);
-    const communityIds = scope?.map((item) => item.communityId) ?? null;
-
-    if (!canModerate(actor) && (!communityIds || communityIds.length === 0)) {
-      return apiError("FORBIDDEN", 403);
-    }
 
     const { searchParams } = new URL(request.url);
     const statusParam = searchParams.get("status");
@@ -66,95 +58,34 @@ export async function GET(request: NextRequest) {
       return apiError("BAD_REQUEST", 400);
     }
 
-    const whereFilters: Prisma.ReportWhereInput[] = [];
-
-    if (communityIds) {
-      whereFilters.push({
-        post: { communityId: { in: communityIds } },
-      });
+    const fromDate = fromParam ? new Date(fromParam) : null;
+    if (fromParam && Number.isNaN(fromDate?.getTime() ?? NaN)) {
+      return apiError("BAD_REQUEST", 400);
     }
 
-    if (status?.success) {
-      whereFilters.push({ status: status.data });
+    const toDate = toParam ? new Date(toParam) : null;
+    if (toParam && Number.isNaN(toDate?.getTime() ?? NaN)) {
+      return apiError("BAD_REQUEST", 400);
     }
 
-    if (category?.success) {
-      whereFilters.push({ category: category.data });
-    }
-
-    if (query) {
-      whereFilters.push({
-        OR: [
-          { reason: { contains: query, mode: "insensitive" } },
-          { reporter: { email: { contains: query, mode: "insensitive" } } },
-          { reporter: { username: { contains: query, mode: "insensitive" } } },
-          { post: { content: { contains: query, mode: "insensitive" } } },
-        ],
-      });
-    }
-
-    if (fromParam) {
-      const fromDate = new Date(fromParam);
-      if (Number.isNaN(fromDate.getTime())) {
-        return apiError("BAD_REQUEST", 400);
-      }
-      whereFilters.push({ createdAt: { gte: fromDate } });
-    }
-
-    if (toParam) {
-      const toDate = new Date(toParam);
-      if (Number.isNaN(toDate.getTime())) {
-        return apiError("BAD_REQUEST", 400);
-      }
-      whereFilters.push({ createdAt: { lte: toDate } });
-    }
-
-    if (cursor) {
-      whereFilters.push({
-        OR:
-          sortDirection === "asc"
-            ? [
-                { createdAt: { gt: cursor.createdAt } },
-                { createdAt: cursor.createdAt, id: { gt: cursor.id } },
-              ]
-            : [
-                { createdAt: { lt: cursor.createdAt } },
-                { createdAt: cursor.createdAt, id: { lt: cursor.id } },
-              ],
-      });
-    }
-
-    const reports = await prisma.report.findMany({
-      where: whereFilters.length ? { AND: whereFilters } : undefined,
-      orderBy: [
-        { createdAt: sortDirection },
-        { id: sortDirection },
-      ],
-      take: limit + 1,
-      include: {
-        post: {
-          select: {
-            id: true,
-            content: true,
-            deletedAt: true,
-            author: { select: { id: true, username: true, name: true } },
-          },
-        },
-        reporter: { select: { id: true, email: true, username: true, name: true } },
-        resolvedBy: { select: { id: true, email: true, username: true, name: true } },
-      },
+    const service = new AdminReportService();
+    const result = await service.listReports({
+      actor: { id: actor.id, role: actor.role },
+      status: status?.success ? status.data : null,
+      category: category?.success ? category.data : null,
+      query: query ?? null,
+      sortDirection,
+      fromDate,
+      toDate,
+      limit,
+      cursor,
     });
 
-    const hasMore = reports.length > limit;
-    const sliced = hasMore ? reports.slice(0, limit) : reports;
-    const nextCursor = hasMore
-      ? buildCursorString(
-          sliced[sliced.length - 1].createdAt,
-          sliced[sliced.length - 1].id
-        )
-      : null;
+    if (!result.ok) {
+      return apiError(result.code, result.status);
+    }
 
-    return apiSuccess({ data: sliced, nextCursor });
+    return apiSuccess(result.payload);
   } catch (error) {
     if (error instanceof Response) {
       return error;

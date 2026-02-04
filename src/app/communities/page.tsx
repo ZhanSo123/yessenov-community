@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
+import { useI18n } from "@/lib/i18n/useI18n";
+
 type Community = {
   id: number;
   slug: string;
@@ -20,6 +22,7 @@ type CommunityResponse = {
 };
 
 export default function CommunitiesPage() {
+  const { t } = useI18n();
   const [communities, setCommunities] = useState<Community[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -36,7 +39,7 @@ export default function CommunitiesPage() {
           credentials: "include",
         });
         if (!response.ok) {
-          throw new Error("Не удалось загрузить сообщества");
+          throw new Error(t("community_feed.error.load"));
         }
 
         const payload = (await response.json()) as CommunityResponse;
@@ -48,7 +51,7 @@ export default function CommunitiesPage() {
           setError(
             fetchError instanceof Error
               ? fetchError.message
-              : "Ошибка загрузки"
+              : t("common.error_load")
           );
         }
       } finally {
@@ -69,22 +72,24 @@ export default function CommunitiesPage() {
     <div className="relative min-h-screen bg-white text-slate-900">
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 pb-16 pt-12">
         <header>
-          <h1 className="text-3xl font-semibold sm:text-4xl">Сообщества</h1>
+          <h1 className="text-3xl font-semibold sm:text-4xl">
+            {t("communities.title")}
+          </h1>
           <p className="mt-2 text-sm text-slate-600">
-            Выберите сообщество, чтобы увидеть ленту постов.
+            {t("communities.subtitle")}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Link
               href="/communities/feed"
               className="bubble-btn rounded-full px-4 py-2 text-xs font-semibold pressable"
             >
-              Лента закрытых сообществ
+              {t("communities.private_feed")}
             </Link>
             <Link
               href="/admin/communities"
               className="bubble-btn rounded-full px-4 py-2 text-xs font-semibold pressable"
             >
-              Админка сообществ
+              {t("communities.admin")}
             </Link>
           </div>
         </header>
@@ -96,11 +101,11 @@ export default function CommunitiesPage() {
         ) : null}
 
         {loading ? (
-          <p className="text-sm text-slate-500">Загрузка...</p>
+          <p className="text-sm text-slate-500">{t("communities.loading")}</p>
         ) : null}
 
         {!loading && !error && communities.length === 0 ? (
-          <p className="text-sm text-slate-500">Сообществ пока нет.</p>
+          <p className="text-sm text-slate-500">{t("communities.empty")}</p>
         ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
@@ -147,27 +152,29 @@ export default function CommunitiesPage() {
                             strokeLinecap="round"
                           />
                         </svg>
-                        Закрытое
+                        {t("communities.private")}
                       </span>
                     ) : null}
                   </div>
                 </div>
                 <p className="mt-1 text-xs text-slate-400">
                   {community.type === "OPEN"
-                    ? "Открытое"
+                    ? t("community.type.open")
                     : community.type === "FACULTY"
-                      ? "Факультет"
+                      ? t("community.type.faculty")
                       : community.type === "COURSE"
-                        ? "Курс"
-                        : "Преподаватели"}
+                        ? t("community.type.course")
+                        : t("community.type.teachers")}
                   {community.facultyCode ? ` · ${community.facultyCode}` : ""}
-                  {community.courseYear ? ` · ${community.courseYear} курс` : ""}
+                  {community.courseYear
+                    ? ` · ${community.courseYear} ${t("community.type.course")}`
+                    : ""}
                 </p>
                 <p className="mt-3 text-sm text-slate-600">
-                  {community.description || "Описание пока не добавлено."}
+                  {community.description || t("communities.description_fallback")}
                 </p>
                 <p className="mt-4 text-xs text-slate-500 group-hover:text-slate-700">
-                  Открыть ленту →
+                  {t("communities.open_feed")}
                 </p>
               </Link>
             );

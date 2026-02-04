@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import UserSearchCard, {
   type UserSearchItem,
 } from "@/components/UserSearchCard";
+import { useI18n } from "@/lib/i18n/useI18n";
 
 type SearchResponse = {
   items?: UserSearchItem[];
@@ -23,6 +24,7 @@ const DEFAULT_LIMIT = 10;
 export default function SearchPage() {
   const { status } = useSession();
   const isUnauthed = status === "unauthenticated";
+  const { t } = useI18n();
 
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -75,7 +77,7 @@ export default function SearchPage() {
         url.searchParams.set("limit", String(DEFAULT_LIMIT));
         const response = await fetch(url, { credentials: "include" });
         if (!response.ok) {
-          throw new Error("Не удалось загрузить пользователей.");
+          throw new Error(t("search.error.load_users"));
         }
         const payload = (await response.json()) as SearchResponse;
         if (active && activeQueryRef.current === currentQuery) {
@@ -89,7 +91,7 @@ export default function SearchPage() {
           setError(
             fetchError instanceof Error
               ? fetchError.message
-              : "Ошибка загрузки"
+              : t("common.error_load")
           );
         }
       } finally {
@@ -119,14 +121,16 @@ export default function SearchPage() {
       url.searchParams.set("cursor", nextCursor);
       const response = await fetch(url, { credentials: "include" });
       if (!response.ok) {
-        throw new Error("Не удалось загрузить пользователей.");
+        throw new Error(t("search.error.load_users"));
       }
       const payload = (await response.json()) as SearchResponse;
       setItems((current) => [...current, ...(payload.items ?? [])]);
       setNextCursor(payload.nextCursor ?? null);
     } catch (fetchError) {
       setError(
-        fetchError instanceof Error ? fetchError.message : "Ошибка загрузки"
+        fetchError instanceof Error
+          ? fetchError.message
+          : t("common.error_load")
       );
     } finally {
       setLoadingMore(false);
@@ -201,21 +205,21 @@ export default function SearchPage() {
 
   const emptyState = useMemo(() => {
     if (!normalizedQuery) {
-      return "Найди людей по имени или @username";
+      return t("search.empty_prompt");
     }
     if (!loading && !error && items.length === 0) {
-      return "Никого не нашли";
+      return t("search.empty_results");
     }
     return "";
-  }, [normalizedQuery, error, items.length, loading]);
+  }, [normalizedQuery, error, items.length, loading, t]);
 
   return (
     <div className="min-h-screen bg-white text-slate-900">
       <main className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-12">
         <header className="space-y-2">
-          <h1 className="text-3xl font-semibold">Поиск</h1>
+          <h1 className="text-3xl font-semibold">{t("search.title")}</h1>
           <p className="text-sm text-slate-500">
-            Ищи по @username или имени, чтобы быстрее найти друзей.
+            {t("search.subtitle")}
           </p>
         </header>
 
@@ -224,7 +228,7 @@ export default function SearchPage() {
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Поиск по @username или имени"
+            placeholder={t("search.placeholder")}
             className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
           />
         </div>
@@ -282,7 +286,7 @@ export default function SearchPage() {
             disabled={loadingMore}
             className="bubble-btn self-start rounded-full px-4 py-2 text-sm font-semibold disabled:opacity-60 pressable"
           >
-            {loadingMore ? "Загружаем..." : "Показать ещё"}
+            {loadingMore ? t("search.loading_more") : t("search.load_more")}
           </button>
         ) : null}
       </main>

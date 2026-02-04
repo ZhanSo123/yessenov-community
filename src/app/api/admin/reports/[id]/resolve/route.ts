@@ -1,11 +1,10 @@
 import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
-import { createAuditLog } from "@/lib/audit-log";
-import { canModerate, getCommunityModeratorRole, requireUserApi } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { requireUserApi } from "@/lib/auth";
 import { rateLimitModeration } from "@/lib/rate-limit";
 import { ReportResolveSchema } from "@/lib/validators";
+import { AdminReportResolveService } from "@/services/admin-report-resolve-service";
 
 export const runtime = "nodejs";
 
@@ -17,7 +16,7 @@ export async function POST(
     const { id } = await context.params;
     const actor = await requireUserApi();
 
-    if (!rateLimitModeration(request, actor.id)) {
+    if (!(await rateLimitModeration(request, actor.id))) {
       return apiError("RATE_LIMIT", 429);
     }
 
@@ -34,55 +33,20 @@ export async function POST(
     }
 
     const { status, note } = parsed.data;
-    const action = status === "REJECTED" ? "REPORT_REJECT" : "REPORT_RESOLVE";
-
-    const target = await prisma.report.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        post: { select: { communityId: true } },
-      },
+    const service = new AdminReportResolveService();
+    const result = await service.resolveReport({
+      actor,
+      reportId: id,
+      status,
+      note: note ?? null,
+      request,
     });
 
-    if (!target) {
-      return apiError("NOT_FOUND", 404);
+    if (!result.ok) {
+      return apiError(result.code, result.status);
     }
 
-    if (!canModerate(actor)) {
-      const communityId = target.post.communityId;
-      if (!communityId) {
-        return apiError("FORBIDDEN", 403);
-      }
-
-      const role = await getCommunityModeratorRole(communityId, actor.id);
-      if (!role) {
-        return apiError("FORBIDDEN", 403);
-      }
-    }
-
-    const report = await prisma.$transaction(async (tx) => {
-      const updated = await tx.report.update({
-        where: { id },
-        data: {
-          status,
-          resolvedAt: new Date(),
-          resolvedById: actor.id,
-          resolutionNote: note ?? null,
-        },
-      });
-
-      await createAuditLog(tx, request, {
-        actor: { connect: { id: actor.id } },
-        action,
-        targetType: "Report",
-        targetId: updated.id,
-        metadata: { status, note: note ?? null },
-      });
-
-      return updated;
-    });
-
-    return apiSuccess({ data: report });
+    return apiSuccess(result.payload);
   } catch (error) {
     if (error instanceof Response) {
       return error;

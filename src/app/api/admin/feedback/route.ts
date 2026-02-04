@@ -1,11 +1,10 @@
-import { type Prisma } from "@prisma/client";
 import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import { requireRoleApi } from "@/lib/auth";
-import { buildCursorString, parseCursorString } from "@/lib/pagination";
-import { prisma } from "@/lib/prisma";
+import { parseCursorString } from "@/lib/pagination";
 import { PaginationSchema } from "@/lib/validators";
+import { FeedbackService } from "@/services/feedback-service";
 
 export const runtime = "nodejs";
 
@@ -32,36 +31,10 @@ export async function GET(request: NextRequest) {
       return apiError("BAD_REQUEST", 400);
     }
 
-    const filters: Prisma.FeedbackWhereInput[] = [];
+    const service = new FeedbackService();
+    const result = await service.listFeedback({ limit, cursor });
 
-    if (cursor) {
-      filters.push({
-        OR: [
-          { createdAt: { lt: cursor.createdAt } },
-          { createdAt: cursor.createdAt, id: { lt: cursor.id } },
-        ],
-      });
-    }
-
-    const feedbackItems = await prisma.feedback.findMany({
-      where: filters.length ? { AND: filters } : undefined,
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: limit + 1,
-      include: {
-        user: { select: { id: true, email: true, username: true, name: true } },
-      },
-    });
-
-    const hasMore = feedbackItems.length > limit;
-    const sliced = hasMore ? feedbackItems.slice(0, limit) : feedbackItems;
-    const nextCursor = hasMore
-      ? buildCursorString(
-          sliced[sliced.length - 1].createdAt,
-          sliced[sliced.length - 1].id
-        )
-      : null;
-
-    return apiSuccess({ data: sliced, nextCursor });
+    return apiSuccess(result.payload);
   } catch (error) {
     if (error instanceof Response) {
       return error;

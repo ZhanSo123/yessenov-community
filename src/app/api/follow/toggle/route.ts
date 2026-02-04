@@ -1,5 +1,4 @@
 import {
-
   FOLLOW_RATE_LIMIT_MAX,
   FOLLOW_RATE_LIMIT_WINDOW_MS,
 } from "@/lib/abuse-rules";
@@ -9,13 +8,11 @@ import { checkActivityLimit } from "@/lib/abuse-tracker";
 import { apiError, apiSuccess } from "@/lib/api-errors";
 import {
   ensureNotBanned,
-  requireUserApi,
+  requireOnboardedUserApi,
 } from "@/lib/auth";
-import { isUniqueConstraintError } from "@/lib/prisma-errors";
-import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { FollowToggleSchema } from "@/lib/validators";
-import { createNotification } from "@/lib/notifications";
+import { FollowService } from "@/services/follow-service";
 
 export const runtime = "nodejs";
 
@@ -33,10 +30,10 @@ export async function POST(request: NextRequest) {
       return apiError("BAD_REQUEST", 400);
     }
 
-    const user = await requireUserApi();
+    const user = await requireOnboardedUserApi();
     ensureNotBanned(user);
 
-    if (!rateLimit(request, user.id)) {
+    if (!(await rateLimit(request, user.id))) {
       return apiError("RATE_LIMIT", 429);
     }
 
@@ -50,78 +47,18 @@ export async function POST(request: NextRequest) {
       return apiError("RATE_LIMIT", 429);
     }
 
-    const usernameLower = parsed.data.username.toLowerCase();
-    const target = await prisma.user.findUnique({
-      where: { usernameLower },
-      select: { id: true },
+    const service = new FollowService();
+    const result = await service.toggleFollow(parsed.data.username, {
+      id: user.id,
+      username: user.username,
+      usernameLower: user.usernameLower,
     });
 
-    if (!target) {
-      return apiError("NOT_FOUND", 404);
+    if (!result.ok) {
+      return apiError(result.code, result.status);
     }
 
-    if (target.id === user.id) {
-      return apiError("BAD_REQUEST", 400);
-    }
-
-    const following = await prisma.$transaction(async (tx) => {
-      const existing = await tx.follow.findUnique({
-        where: {
-          followerId_followingId: {
-            followerId: user.id,
-            followingId: target.id,
-          },
-        },
-      });
-
-      if (existing) {
-        await tx.follow.delete({ where: { id: existing.id } });
-        return false;
-      }
-
-      try {
-        await tx.follow.create({
-          data: {
-            followerId: user.id,
-            followingId: target.id,
-          },
-        });
-        return true;
-      } catch (error) {
-        if (!isUniqueConstraintError(error)) {
-          throw error;
-        }
-        return true;
-      }
-    });
-
-    let isFriend = false;
-    if (following) {
-      const reverse = await prisma.follow.findUnique({
-        where: {
-          followerId_followingId: {
-            followerId: target.id,
-            followingId: user.id,
-          },
-        },
-        select: { id: true },
-      });
-      isFriend = Boolean(reverse);
-    }
-
-    if (following) {
-      try {
-        await createNotification({
-          userId: target.id,
-          actorId: user.id,
-          type: "FOLLOW",
-        });
-      } catch {
-        // ignore
-      }
-    }
-
-    return apiSuccess({ data: { following, isFriend } });
+    return apiSuccess({ data: result.payload });
   } catch (error) {
     if (error instanceof Response) {
       return error;

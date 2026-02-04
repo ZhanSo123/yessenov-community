@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 
 import { apiError, apiSuccess } from "@/lib/api-errors";
-import { requireUserApi } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { requireOnboardedUserApi } from "@/lib/auth";
 import { DmSendSchema } from "@/lib/validators";
+import { DmSendService } from "@/services/dm-send-service";
 
 export const runtime = "nodejs";
 
@@ -12,7 +12,7 @@ export async function POST(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    const me = await requireUserApi();
+    const me = await requireOnboardedUserApi();
     const { id } = await context.params;
     if (!id) {
       return apiError("BAD_REQUEST", 400);
@@ -30,70 +30,18 @@ export async function POST(
       return apiError("BAD_REQUEST", 400);
     }
 
-    const conversation = await prisma.conversation.findUnique({
-      where: { id },
-      select: { id: true },
+    const service = new DmSendService();
+    const result = await service.sendMessage({
+      conversationId: id,
+      senderId: me.id,
+      content: parsed.data.content,
     });
 
-    if (!conversation) {
-      return apiError("NOT_FOUND", 404);
+    if (!result.ok) {
+      return apiError(result.code, result.status);
     }
 
-    const participant = await prisma.conversationParticipant.findUnique({
-      where: {
-        conversationId_userId: {
-          conversationId: id,
-          userId: me.id,
-        },
-      },
-      select: { userId: true },
-    });
-
-    if (!participant) {
-      return apiError("FORBIDDEN", 403);
-    }
-
-    const created = await prisma.message.create({
-      data: {
-        conversationId: id,
-        senderId: me.id,
-        content: parsed.data.content.trim(),
-      },
-      select: {
-        id: true,
-        content: true,
-        createdAt: true,
-        sender: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            image: true,
-          },
-        },
-      },
-    });
-
-    await prisma.$transaction([
-      prisma.conversation.update({
-        where: { id },
-        data: {
-          lastMessageAt: created.createdAt,
-          lastMessageId: created.id,
-        },
-      }),
-      prisma.conversationParticipant.update({
-        where: {
-          conversationId_userId: {
-            conversationId: id,
-            userId: me.id,
-          },
-        },
-        data: { lastReadAt: created.createdAt },
-      }),
-    ]);
-
-    return apiSuccess({ data: created });
+    return apiSuccess(result.payload);
   } catch (error) {
     if (error instanceof Response) {
       return error;

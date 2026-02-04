@@ -1,10 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
+  --background: #f6f8fc;
   --foreground: #0b1b33;
-  --brand: #6495ed;
-  --font-sans: "Helvetica Neue", Arial, sans-serif;
+  --brand: #7bb7ff;
+  --brand-strong: #4a9bff;
+  --surface: rgba(255, 255, 255, 0.86);
+  --surface-strong: rgba(255, 255, 255, 0.96);
+  --border: rgba(124, 155, 196, 0.18);
+  --border-strong: rgba(124, 155, 196, 0.32);
+  --text-muted: #64748b;
+  --font-sans: var(--font-manrope), "Manrope", "Helvetica Neue", Arial, sans-serif;
   --font-jetbrains-mono: "JetBrains Mono", "SFMono-Regular", Menlo, monospace;
 }
 
@@ -20,6 +26,47 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+.app-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(1200px 800px at 0% -10%, rgba(123, 183, 255, 0.22), transparent 60%),
+    radial-gradient(900px 700px at 100% 0%, rgba(164, 214, 255, 0.22), transparent 60%),
+    linear-gradient(180deg, #f8faff 0%, #f3f6fb 100%);
+}
+
+.app-orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(36px);
+  opacity: 0.7;
+}
+
+.app-orb-1 {
+  top: -120px;
+  left: -80px;
+  width: 320px;
+  height: 320px;
+  background: radial-gradient(circle, rgba(123, 183, 255, 0.45), transparent 70%);
+}
+
+.app-orb-2 {
+  top: 140px;
+  right: -140px;
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(circle, rgba(164, 214, 255, 0.4), transparent 70%);
+}
+
+.app-orb-3 {
+  bottom: -160px;
+  left: 40%;
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(123, 183, 255, 0.28), transparent 70%);
 }
 
 @keyframes fade-up {
@@ -75,24 +122,24 @@ body {
 }
 
 .bubble-btn {
-  border: 1px solid rgba(100, 149, 237, 0.35);
-  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid var(--border);
+  background: var(--surface);
   color: #0f172a;
-  box-shadow: 0 6px 18px rgba(100, 149, 237, 0.08);
+  box-shadow: 0 12px 26px rgba(20, 40, 90, 0.08);
   transition: border-color 180ms ease, color 180ms ease, box-shadow 180ms ease,
     background 180ms ease, transform 120ms ease;
 }
 
 .bubble-btn:hover {
-  border-color: rgba(100, 149, 237, 0.65);
-  color: #6495ed;
+  border-color: var(--brand);
+  color: var(--brand-strong);
 }
 
 .bubble-btn-primary {
-  border: 1px solid rgba(100, 149, 237, 0.8);
-  background: #6495ed;
+  border: 1px solid rgba(74, 155, 255, 0.65);
+  background: linear-gradient(135deg, #8cc5ff 0%, #4a9bff 100%);
   color: #ffffff;
-  box-shadow: 0 10px 20px rgba(100, 149, 237, 0.25);
+  box-shadow: 0 18px 30px rgba(74, 155, 255, 0.3);
 }
 
 .bubble-btn-primary:hover {
@@ -102,7 +149,7 @@ body {
 
 .nav-active {
   position: relative;
-  color: #6495ed;
+  color: var(--brand-strong);
 }
 
 .nav-active::after {
@@ -110,7 +157,7 @@ body {
   position: absolute;
   inset: -6px;
   border-radius: 18px;
-  background: radial-gradient(circle, rgba(100, 149, 237, 0.18), rgba(100, 149, 237, 0));
+  background: radial-gradient(circle, rgba(123, 183, 255, 0.2), rgba(123, 183, 255, 0));
   opacity: 1;
   z-index: -1;
   animation: fade-in 220ms ease-out both;
@@ -159,9 +206,9 @@ body {
   border-radius: 26px;
   background: radial-gradient(
     circle,
-    rgba(100, 149, 237, 0.22) 0%,
-    rgba(100, 149, 237, 0.08) 45%,
-    rgba(100, 149, 237, 0) 70%
+    rgba(123, 183, 255, 0.22) 0%,
+    rgba(123, 183, 255, 0.08) 45%,
+    rgba(123, 183, 255, 0) 70%
   );
   opacity: 0;
   transform: scale(0.9);
@@ -170,7 +217,7 @@ body {
 }
 
 .nav-item-active {
-  color: #6495ed;
+  color: var(--brand-strong);
 }
 
 .nav-item-active::before {
@@ -181,4 +228,62 @@ body {
 
 .nav-item-active svg {
   animation: icon-pop 240ms ease-out;
+}
+
+.bubble-surface {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: 0 18px 40px rgba(15, 35, 90, 0.08);
+  backdrop-filter: blur(16px);
+}
+
+.bubble-surface-strong {
+  border: 1px solid var(--border-strong);
+  background: var(--surface-strong);
+  box-shadow: 0 20px 46px rgba(15, 35, 90, 0.12);
+  backdrop-filter: blur(18px);
+}
+
+.bubble-chip {
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text-muted);
+  box-shadow: 0 10px 20px rgba(15, 35, 90, 0.05);
+}
+
+.bubble-chip-active {
+  border: 1px solid rgba(74, 155, 255, 0.35);
+  background: rgba(123, 183, 255, 0.16);
+  color: var(--brand-strong);
+}
+
+.bubble-input {
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--foreground);
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.bubble-input:focus {
+  outline: none;
+  border-color: rgba(74, 155, 255, 0.5);
+  box-shadow: 0 0 0 3px rgba(123, 183, 255, 0.15);
+}
+
+.bubble-icon-btn {
+  border: 1px solid var(--border);
+  background: var(--surface-strong);
+  color: var(--text-muted);
+  transition: border-color 180ms ease, color 180ms ease, transform 120ms ease;
+}
+
+.bubble-icon-btn:hover {
+  border-color: rgba(74, 155, 255, 0.5);
+  color: var(--brand-strong);
+}
+
+.bubble-highlight {
+  background: rgba(227, 246, 255, 0.75);
+  border-color: rgba(74, 155, 255, 0.35);
+  box-shadow: 0 20px 46px rgba(74, 155, 255, 0.18);
 }
